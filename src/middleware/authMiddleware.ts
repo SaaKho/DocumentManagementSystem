@@ -7,7 +7,11 @@ interface AuthenticatedRequest extends Request {
   user?: any;
 }
 
-export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -27,9 +31,13 @@ export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: N
 
 export const authorizeRole = (role: string) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    console.log(req.user);
     if (!req.user || req.user.role !== role) {
-      return res.status(403).json({ message: `Access denied. Requires ${role} role.` });
+      return res
+        .status(403)
+        .json({ message: `Access denied. Requires ${role} role.` });
     }
     next();
   };
 };
+

@@ -71,7 +71,7 @@ router.post("/login", async (req: Request, res: Response) => {
 
 // Route to update a user (accessible only to Admin)
 router.put(
-  "/users/:id",
+  "/update/:id",
   authMiddleware,
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
@@ -100,6 +100,7 @@ router.put(
         res.status(404).json({ message: "User not found" });
       }
     } catch (error: any) {
+      console.log(error);
       res.status(500).json({ error: "Failed to update user" });
     }
   }
@@ -107,7 +108,7 @@ router.put(
 
 // Route to delete a user (accessible only to Admin)
 router.delete(
-  "/users/:id",
+  "/deleteUser/:id",
   authMiddleware,
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
@@ -125,6 +126,7 @@ router.delete(
         res.status(404).json({ message: "User not found" });
       }
     } catch (error: any) {
+      console.log(error);
       res.status(500).json({ error: "Failed to delete user" });
     }
   }

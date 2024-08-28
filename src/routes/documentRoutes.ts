@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import { db, documents } from "../drizzle/schema";
 import { documentSchema } from "../validation/documentvalidation";
-import { inArray, arrayContains, eq, ilike, and, sql, or, like } from "drizzle-orm";
+import { arrayContains, eq, ilike } from "drizzle-orm";
 import { authMiddleware, authorizeRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
@@ -13,6 +13,7 @@ const LINK_EXPIRATION = process.env.LINK_EXPIRATION || "15m";
 
 // Apply the auth middleware to all routes
 router.use(authMiddleware);
+// router.use();
 
 // Create a new document (accessible to both Admin and User)
 router.post("/addDocument", async (req: Request, res: Response) => {
@@ -31,48 +32,15 @@ router.post("/addDocument", async (req: Request, res: Response) => {
       })
       .returning();
     res.status(201).json(newDocument);
+    console.log("Hello I am here");
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create document" });
   }
 });
 
-// Get all documents (accessible to both Admin and User)
-router.get("/allDocuments", async (req: Request, res: Response) => {
-  try {
-    const allDocuments = await db.select().from(documents).execute();
-    res.status(200).json(allDocuments);
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to retrieve documents" });
-  }
-});
-
-// Get a single document by ID accessible to both Admin
-router.get(
-  "/documents/:id",
-  authorizeRole("Admin"),
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    try {
-      const result = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, id))
-        .execute();
-      const document = result[0];
-      if (document) {
-        res.status(200).json(document);
-      } else {
-        res.status(404).json({ message: "Document not found" });
-      }
-    } catch (error: any) {
-      res.status(500).json({ error: "Failed to retrieve document" });
-    }
-  }
-);
-
-// Update a document by ID (accessible to both Admin and User)
+// Update a document by ID
 router.put(
-  "/documents/:id",
+  "/update/:id",
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
     const parsed = documentSchema.safeParse(req.body);
@@ -101,9 +69,9 @@ router.put(
   }
 );
 
-// Delete a document by ID (accessible only to Admin)
+// Delete a document by ID
 router.delete(
-  "/documents/:id",
+  "/delete/:id",
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -143,8 +111,8 @@ router.post(
       )}/documents/download/${token}`;
 
       res.status(200).json({ downloadLink });
+      console.log("Hello I am here");
     } catch (error: any) {
-      console.error(error);
       res.status(500).json({ error: "Failed to generate download link" });
     }
   }
@@ -178,81 +146,14 @@ router.get(
       res.status(500).json({ error: "Failed to download file" });
     }
   }
-); 
-
-//Advanced Search for docuemnts
-// router.get("/search", async (req, res) => {
-//   const { tags, metadata, title, author } = req.query;
-
-//   try {
-//     const query = db.select().from(documents);
-
-//     // Add filter for tags if provided
-//     if (tags) {
-//       // const tagsArray = Array.isArray(tags) ? tags : [tags];
-//       // query.where(arrayContains(documents.tags, tagsArray));
-//       query.where(arrayContains(documents.tags, ["finance", "report", "Q2", "2024"]));
-//     }
-
-//     // Add filter for metadata if provided
-//     // if (metadata) {
-//     //   const metadataObj = JSON.parse(metadata as string);
-//     //   Object.keys(metadataObj).forEach((key) => {
-//     //     query.where(eq(documents.metadata[key], metadataObj[key]));
-//     //   });
-//     // }
-
-//     // Add filter for title if provided
-//     if (title) {
-//       query.where(ilike(documents.title, `%${title}%`));
-//     }
-
-//     // Add filter for author if provided
-//     if (author) {
-//       query.where(ilike(documents.author, `%${author}%`));
-//     }
-
-//     const results = await query;
-//     res.json(results);
-//   } catch (error) {
-//     res.status(500).json({ error: "An error occurred while searching." });
-//   }
-// });
+);
 
 
-//Attempt to only make tags work 
-
-// router.get("/search", async (req, res) => {
-//   const { tags, title, author } = req.query;
-
-//   try {
-//     const query = db.select().from(documents);
-
-//     // Dynamically use tags provided in the API URL
-//     if (tags) {
-//       const tagsArray = Array.isArray(tags) ? tags : [tags];
-//       query.where(arrayContains(documents.tags as any, tagsArray as any));
-//     }
-
-//     // Filter by title if provided
-//     if (title) {
-//       query.where(ilike(documents.title, `%${title}%`));
-//     }
-
-//     // Filter by author if provided
-//     if (author) {
-//       query.where(ilike(documents.author, `%${author}%`));
-//     }
-
-//     const results = await query;
-//     res.json(results);
-//   } catch (error) {
-//     res.status(500).json({ error: "An error occurred while searching." });
-//   }
-// });
-
-router.get("/search", async (req, res) => {
+router.get("/search",authorizeRole('Admin'), async (req: Request, res: Response) => {
+  console.log("Hello I am here"); 
   const { tags, title, author, metadata } = req.query;
+
+  console.log("Search parameters:", { tags, title, author, metadata });
 
   try {
     const query = db.select().from(documents);
@@ -260,34 +161,83 @@ router.get("/search", async (req, res) => {
     // Dynamically use tags provided in the API URL
     if (tags) {
       const tagsArray = Array.isArray(tags) ? tags : [tags];
+      console.log("Filtering by tags:", tagsArray);
       query.where(arrayContains(documents.tags as any, tagsArray as any));
     }
 
     // Filter by title if provided
     if (title) {
+      console.log("Filtering by title:", title);
       query.where(ilike(documents.title, `%${title}%`));
     }
 
     // Filter by author if provided
     if (author) {
+      console.log("Filtering by author:", author);
       query.where(ilike(documents.author, `%${author}%`));
     }
 
     // Filter by metadata if provided
     if (metadata) {
-      const metadataObj = JSON.parse(metadata as string);
-      Object.keys(metadataObj).forEach((key) => {
-        query.where(eq((documents.metadata as any)[key], metadataObj[key]));
-      });
+      try {
+        const metadataObj = JSON.parse(metadata as string);
+        console.log("Filtering by metadata:", metadataObj);
+        Object.keys(metadataObj).forEach((key) => {
+          query.where(eq((documents.metadata as any)[key], metadataObj[key]));
+        });
+      } catch (jsonParseError) {
+        console.error(
+          "Failed to parse metadata:",
+          (jsonParseError as any).message
+        );
+        return res.status(400).json({ error: "Invalid metadata format" });
+      }
     }
 
     const results = await query;
+    console.log("Search results:", results);
     res.json(results);
-  } catch (error) {
-    res.status(500).json({ error: "An error occurred while searching." });
+  } catch (error: any) {
+    console.error("Error during search:", error);
+    res
+      .status(500)
+      .json({ error: `An error occurred while searching: ${error.message}` });
   }
 });
 
+// Get all documents (accessible to both Admin and User)
+router.get("/allDocuments", async (req: Request, res: Response) => {
+  try {
+    const allDocuments = await db.select().from(documents).execute();
+    res.status(200).json(allDocuments);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to retrieve documents" });
+  }
+});
 
+// Get a single document by ID
+router.get(
+  "/:id",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+      const result = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, id))
+        .execute();
+      const document = result[0];
+      if (document) {
+        res.status(200).json(document);
+        console.log("Hello I am here");
+      } else {
+        res.status(404).json({ message: "Document not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to retrieve document" });
+    }
+  }
+);
 
 export default router;
