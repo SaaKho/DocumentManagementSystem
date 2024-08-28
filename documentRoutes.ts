@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs";
 import { db, documents } from "../drizzle/schema";
 import { documentSchema } from "../validation/documentvalidation";
-import { eq, sql } from "drizzle-orm";
+import { inArray, arrayContains, eq, ilike, and, sql, or, like } from "drizzle-orm";
 import { authMiddleware, authorizeRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
@@ -46,9 +46,9 @@ router.get("/allDocuments", async (req: Request, res: Response) => {
   }
 });
 
-// Get a single document by ID accessible to both Admin
+// Get a single document by ID
 router.get(
-  "/documents/:id",
+  "/:id",
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -70,9 +70,9 @@ router.get(
   }
 );
 
-// Update a document by ID (accessible to both Admin and User)
+// Update a document by ID 
 router.put(
-  "/documents/:id",
+  "/update/:id",
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
     const parsed = documentSchema.safeParse(req.body);
@@ -101,9 +101,9 @@ router.put(
   }
 );
 
-// Delete a document by ID (accessible only to Admin)
+// Delete a document by ID
 router.delete(
-  "/documents/:id",
+  "/delete/:id",
   authorizeRole("Admin"),
   async (req: Request, res: Response) => {
     const { id } = req.params;
@@ -178,6 +178,116 @@ router.get(
       res.status(500).json({ error: "Failed to download file" });
     }
   }
-);
+); 
+
+//Advanced Search for docuemnts
+// router.get("/search", async (req, res) => {
+//   const { tags, metadata, title, author } = req.query;
+
+//   try {
+//     const query = db.select().from(documents);
+
+//     // Add filter for tags if provided
+//     if (tags) {
+//       // const tagsArray = Array.isArray(tags) ? tags : [tags];
+//       // query.where(arrayContains(documents.tags, tagsArray));
+//       query.where(arrayContains(documents.tags, ["finance", "report", "Q2", "2024"]));
+//     }
+
+//     // Add filter for metadata if provided
+//     // if (metadata) {
+//     //   const metadataObj = JSON.parse(metadata as string);
+//     //   Object.keys(metadataObj).forEach((key) => {
+//     //     query.where(eq(documents.metadata[key], metadataObj[key]));
+//     //   });
+//     // }
+
+//     // Add filter for title if provided
+//     if (title) {
+//       query.where(ilike(documents.title, `%${title}%`));
+//     }
+
+//     // Add filter for author if provided
+//     if (author) {
+//       query.where(ilike(documents.author, `%${author}%`));
+//     }
+
+//     const results = await query;
+//     res.json(results);
+//   } catch (error) {
+//     res.status(500).json({ error: "An error occurred while searching." });
+//   }
+// });
+
+
+//Attempt to only make tags work 
+
+// router.get("/search", async (req, res) => {
+//   const { tags, title, author } = req.query;
+
+//   try {
+//     const query = db.select().from(documents);
+
+//     // Dynamically use tags provided in the API URL
+//     if (tags) {
+//       const tagsArray = Array.isArray(tags) ? tags : [tags];
+//       query.where(arrayContains(documents.tags as any, tagsArray as any));
+//     }
+
+//     // Filter by title if provided
+//     if (title) {
+//       query.where(ilike(documents.title, `%${title}%`));
+//     }
+
+//     // Filter by author if provided
+//     if (author) {
+//       query.where(ilike(documents.author, `%${author}%`));
+//     }
+
+//     const results = await query;
+//     res.json(results);
+//   } catch (error) {
+//     res.status(500).json({ error: "An error occurred while searching." });
+//   }
+// });
+
+router.get("/search",authorizeRole("Admin"), async (req, res) => {
+  const { tags, title, author, metadata } = req.query;
+
+  try {
+    const query = db.select().from(documents);
+
+    // Dynamically use tags provided in the API URL
+    if (tags) {
+      const tagsArray = Array.isArray(tags) ? tags : [tags];
+      query.where(arrayContains(documents.tags as any, tagsArray as any));
+    }
+
+    // Filter by title if provided
+    if (title) {
+      query.where(ilike(documents.title, `%${title}%`));
+    }
+
+    // Filter by author if provided
+    if (author) {
+      query.where(ilike(documents.author, `%${author}%`));
+    }
+
+    // Filter by metadata if provided
+    if (metadata) {
+      const metadataObj = JSON.parse(metadata as string);
+      Object.keys(metadataObj).forEach((key) => {
+        query.where(eq((documents.metadata as any)[key], metadataObj[key]));
+      });
+    }
+
+    const results = await query;
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: "An error occurred while searching." });
+  }
+});
+
+
 
 export default router;
