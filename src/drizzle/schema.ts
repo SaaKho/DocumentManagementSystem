@@ -51,7 +51,7 @@ export async function insertSampleDocuments() {
       title: "Quarterly Financial Report",
       content: "Detailed financial report for Q2 2024...",
       author: "John Doe",
-      tags: ["finance", "report", "Q2", "2024"],  // Tags are stored as an array of strings
+      tags: ["finance", "report", "Q2", "2024"],  
       metadata: {
         department: "finance",
         year: 2024,
@@ -83,7 +83,6 @@ export async function insertSampleDocuments() {
 
 // insertSampleDocuments();  
 
-
 export async function insertAdmin() {
   try {
     await db.insert(users).values({
@@ -100,3 +99,19 @@ export async function insertAdmin() {
 }
 
 // insertAdmin();
+
+export async function insertUser() {
+  try {
+    await db.insert(users).values({
+      username: "testUser2",
+      email: "testuser@hotmail.com",
+      password: await bcrypt.hash("userpassword", 10),
+      role: "user",
+      
+    });
+    console.log("Sample User created successfully.");
+  } catch (error: any) {
+    console.error("Failed to create User:", error);
+  }
+}
+// insertUser();

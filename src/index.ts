@@ -9,8 +9,8 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json());
 
 // Routes
-app.use("/auth", authRoutes);
-app.use("/documents", documentRoutes);
+app.use("/api/users", authRoutes);
+app.use("/api/documents", documentRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
