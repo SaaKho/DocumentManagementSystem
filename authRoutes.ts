@@ -7,6 +7,7 @@ import { registerSchema, loginSchema } from "../validation/authvalidation";
 import { authMiddleware, authorizeRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
+
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 const LINK_EXPIRATION = process.env.LINK_EXPIRATION || "15m";
 
@@ -29,7 +30,9 @@ router.post("/register", async (req: Request, res: Response) => {
         role: "user", // Default role is 'user'
       })
       .returning();
-    res.status(201).json({ message: "User registered successfully", user: newUser });
+    res
+      .status(201)
+      .json({ message: "User registered successfully", user: newUser });
   } catch (error: any) {
     console.log(error);
     res.status(500).json({ error: "Failed to register user" });
@@ -44,7 +47,11 @@ router.post("/login", async (req: Request, res: Response) => {
   }
   const { username, password } = parsed.data;
   try {
-    const result = await db.select().from(users).where(eq(users.username, username)).execute();
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username))
+      .execute();
     const user = result[0];
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Invalid username or password" });
@@ -63,49 +70,64 @@ router.post("/login", async (req: Request, res: Response) => {
 });
 
 // Route to update a user (accessible only to Admin)
-router.put("/users/:id", authMiddleware, authorizeRole("Admin"), async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { username, email, password, role } = req.body;
+router.put(
+  "/users/:id",
+  authMiddleware,
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { username, email, password, role } = req.body;
 
-  try {
-    const hashedPassword = password ? await bcrypt.hash(password, 10) : undefined;
-    const updatedUser = await db
-      .update(users)
-      .set({
-        username: username || undefined,
-        email: email || undefined,
-        password: hashedPassword || undefined,
-        role: role || undefined,
-      })
-      .where(eq(users.id, id))
-      .returning()
-      .execute();
+    try {
+      const hashedPassword = password
+        ? await bcrypt.hash(password, 10)
+        : undefined;
+      const updatedUser = await db
+        .update(users)
+        .set({
+          username: username || undefined,
+          email: email || undefined,
+          password: hashedPassword || undefined,
+          role: role || undefined,
+        })
+        .where(eq(users.id, id))
+        .returning()
+        .execute();
 
-    if (updatedUser.length > 0) {
-      res.status(200).json(updatedUser);
-    } else {
-      res.status(404).json({ message: "User not found" });
+      if (updatedUser.length > 0) {
+        res.status(200).json(updatedUser);
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to update user" });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to update user" });
   }
-});
+);
 
 // Route to delete a user (accessible only to Admin)
-router.delete("/users/:id", authMiddleware, authorizeRole("Admin"), async (req: Request, res: Response) => {
-  const { id } = req.params;
+router.delete(
+  "/users/:id",
+  authMiddleware,
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
 
-  try {
-    const deleteResult = await db.delete(users).where(eq(users.id, id)).execute();
+    try {
+      const deleteResult = await db
+        .delete(users)
+        .where(eq(users.id, id))
+        .execute();
 
-    if (deleteResult.rowCount && deleteResult.rowCount > 0) {
-      res.status(204).send(); // Success: No Content
-    } else {
-      res.status(404).json({ message: "User not found" });
+      if (deleteResult.rowCount && deleteResult.rowCount > 0) {
+        res.status(204).send(); // Success: No Content
+      } else {
+        res.status(404).json({ message: "User not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to delete user" });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to delete user" });
   }
-});
+);
 
 export default router;

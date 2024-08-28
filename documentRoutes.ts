@@ -46,118 +46,138 @@ router.get("/allDocuments", async (req: Request, res: Response) => {
   }
 });
 
-// Get a single document by ID (accessible to both Admin and User)
-router.get("/documents/:id", async (req: Request, res: Response) => {
-  const { id } = req.params;
-  try {
-    const result = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, id))
-      .execute();
-    const document = result[0];
-    if (document) {
-      res.status(200).json(document);
-    } else {
-      res.status(404).json({ message: "Document not found" });
+// Get a single document by ID accessible to both Admin
+router.get(
+  "/documents/:id",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+      const result = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, id))
+        .execute();
+      const document = result[0];
+      if (document) {
+        res.status(200).json(document);
+      } else {
+        res.status(404).json({ message: "Document not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to retrieve document" });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to retrieve document" });
   }
-});
+);
 
 // Update a document by ID (accessible to both Admin and User)
-router.put("/documents/:id", async (req: Request, res: Response) => {
-  const parsed = documentSchema.safeParse(req.body);
-  if (!parsed.success) {
-    return res.status(400).json({ errors: parsed.error.errors });
-  }
-  const { id } = req.params;
-  const { title, content, author } = parsed.data;
-
-  try {
-    const updatedDocument = await db
-      .update(documents)
-      .set({ title, content, author })
-      .where(eq(documents.id, id))
-      .returning()
-      .execute();
-
-    if (updatedDocument.length > 0) {
-      res.status(200).json(updatedDocument);
-    } else {
-      res.status(404).json({ message: "Document not found" });
+router.put(
+  "/documents/:id",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const parsed = documentSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ errors: parsed.error.errors });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to update document" });
+    const { id } = req.params;
+    const { title, content, author } = parsed.data;
+
+    try {
+      const updatedDocument = await db
+        .update(documents)
+        .set({ title, content, author })
+        .where(eq(documents.id, id))
+        .returning()
+        .execute();
+
+      if (updatedDocument.length > 0) {
+        res.status(200).json(updatedDocument);
+      } else {
+        res.status(404).json({ message: "Document not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to update document" });
+    }
   }
-});
+);
 
 // Delete a document by ID (accessible only to Admin)
-router.delete("/documents/:id", authorizeRole("Admin"), async (req: Request, res: Response) => {
-  const { id } = req.params;
-  try {
-    const deleteResult = await db
-      .delete(documents)
-      .where(eq(documents.id, id))
-      .execute();
+router.delete(
+  "/documents/:id",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+      const deleteResult = await db
+        .delete(documents)
+        .where(eq(documents.id, id))
+        .execute();
 
-    if (deleteResult.rowCount && deleteResult.rowCount > 0) {
-      res.status(204).send(); // Success: No Content
-    } else {
-      res.status(404).json({ message: "Document not found" });
+      if (deleteResult.rowCount && deleteResult.rowCount > 0) {
+        res.status(204).send(); // Success: No Content
+      } else {
+        res.status(404).json({ message: "Document not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to delete document" });
     }
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to delete document" });
   }
-});
+);
 
 // Generate a short-lived download link for a document file (accessible to both Admin and User)
-router.post("/generate-download-link/:filename", async (req: Request, res: Response) => {
-  const { filename } = req.params;
+router.post(
+  "/generate-download-link/:filename",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { filename } = req.params;
 
-  try {
-    // Generate a JWT token with file information and expiration time
-    const token = jwt.sign({ filename }, JWT_SECRET, {
-      expiresIn: LINK_EXPIRATION,
-    });
+    try {
+      // Generate a JWT token with file information and expiration time
+      const token = jwt.sign({ filename }, JWT_SECRET, {
+        expiresIn: LINK_EXPIRATION,
+      });
 
-    // Construct the download link
-    const downloadLink = `${req.protocol}://${req.get(
-      "host"
-    )}/documents/download/${token}`;
+      // Construct the download link
+      const downloadLink = `${req.protocol}://${req.get(
+        "host"
+      )}/documents/download/${token}`;
 
-    res.status(200).json({ downloadLink });
-  } catch (error: any) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to generate download link" });
+      res.status(200).json({ downloadLink });
+    } catch (error: any) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to generate download link" });
+    }
   }
-});
+);
 
 // Serve the file using the token (accessible to both Admin and User)
-router.get("/download/:token", async (req: Request, res: Response) => {
-  const { token } = req.params;
+router.get(
+  "/download/:token",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { token } = req.params;
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { filename: string };
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { filename: string };
 
-    // Adjusted file path to match your directory structure
-    const filePath = path.join(__dirname, "../uploads", decoded.filename);
+      // Adjusted file path to match your directory structure
+      const filePath = path.join(__dirname, "../uploads", decoded.filename);
 
-    console.log("Looking for file at:", filePath); // Log for debugging
+      console.log("Looking for file at:", filePath); // Log for debugging
 
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: "File not found" });
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      res.download(filePath);
+    } catch (error: any) {
+      if (error.name === "TokenExpiredError") {
+        return res.status(401).json({ error: "Download link has expired" });
+      }
+      console.error(error);
+      res.status(500).json({ error: "Failed to download file" });
     }
-
-    res.download(filePath);
-  } catch (error: any) {
-    if (error.name === "TokenExpiredError") {
-      return res.status(401).json({ error: "Download link has expired" });
-    }
-    console.error(error);
-    res.status(500).json({ error: "Failed to download file" });
   }
-});
+);
 
 export default router;
