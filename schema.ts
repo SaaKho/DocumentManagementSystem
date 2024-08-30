@@ -52,41 +52,41 @@ export const users = pgTable("users", {
 });
 
 // Function to insert sample documents (can be used for testing or seeding)
-export async function insertSampleDocuments() {
-  try {
-    await db.insert(documents).values({
-      title: "Quarterly Financial Report",
-      content: "Detailed financial report for Q2 2024...",
-      author: "John Doe",
-      tags: ["finance", "report", "Q2", "2024"],
-      metadata: {
-        department: "finance",
-        year: 2024,
-        reviewed: true,
-      },
-    });
+// export async function insertSampleDocuments() {
+//   try {
+//     await db.insert(documents).values({
+//       title: "Quarterly Financial Report",
+//       content: "Detailed financial report for Q2 2024...",
+//       author: "John Doe",
+//       tags: ["finance", "report", "Q2", "2024"],
+//       metadata: {
+//         department: "finance",
+//         year: 2024,
+//         reviewed: true,
+//       },
+//     });
 
-    await db.insert(documents).values({
-      title: "Project Plan for Solar Energy Initiative",
-      content:
-        "This document outlines the project plan for the solar energy initiative...",
-      author: "Jane Smith",
-      tags: ["project", "solar", "energy", "sustainability"], // Tags relevant to the document
-      metadata: {
-        project_name: "Solar Energy Initiative",
-        start_date: "2024-01-01",
-        end_date: "2024-12-31",
-        stakeholders: ["Jane Smith", "John Doe", "Alice Johnson"],
-        department: "Engineering",
-        priority: "High",
-      },
-    });
+//     await db.insert(documents).values({
+//       title: "Project Plan for Solar Energy Initiative",
+//       content:
+//         "This document outlines the project plan for the solar energy initiative...",
+//       author: "Jane Smith",
+//       tags: ["project", "solar", "energy", "sustainability"], 
+//       metadata: {
+//         project_name: "Solar Energy Initiative",
+//         start_date: "2024-01-01",
+//         end_date: "2024-12-31",
+//         stakeholders: ["Jane Smith", "John Doe", "Alice Johnson"],
+//         department: "Engineering",
+//         priority: "High",
+//       },
+//     });
 
-    console.log("Sample documents inserted successfully.");
-  } catch (error: any) {
-    console.error("Failed to insert sample documents:", error);
-  }
-}
+//     console.log("Sample documents inserted successfully.");
+//   } catch (error: any) {
+//     console.error("Failed to insert sample documents:", error);
+//   }
+// }
 
 // insertSampleDocuments();
 
