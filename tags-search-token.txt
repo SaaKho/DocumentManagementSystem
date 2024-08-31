@@ -1,0 +1,104 @@
+//search using tags and metadata
+// router.get(
+//   "/search",
+//   authorizeRole("Admin"),
+//   async (req: Request, res: Response) => {
+//     // console.log("Hello I am here");
+//     const { tags, title, author, metadata } = req.query;
+
+//     console.log("Search parameters:", { tags, title, author, metadata });
+
+//     try {
+//       const query = db.select().from(documents);
+
+//       // Dynamically use tags provided in the API URL
+//       if (tags) {
+//         const tagsArray = Array.isArray(tags) ? tags : [tags];
+//         console.log("Filtering by tags:", tagsArray);
+//         query.where(arrayContains(documents.tags as any, tagsArray as any));
+//       }
+
+//       // Filter by title if provided
+
+//       // Filter by metadata if provided
+//       // if (metadata) {
+//       //   try {
+//       //     const metadataObj = JSON.parse(metadata as string);
+//       //     console.log("Filtering by metadata:", metadataObj);
+//       //     Object.keys(metadataObj).forEach((key) => {
+//       //       query.where(eq((documents.metadata as any)[key], metadataObj[key]));
+//       //     });
+//       //   } catch (jsonParseError) {
+//       //     console.error(
+//       //       "Failed to parse metadata:",
+//       //       (jsonParseError as any).message
+//       //     );
+//       //     return res.status(400).json({ error: "Invalid metadata format" });
+//       //   }
+//       // }
+
+//       const results = await query;
+//       console.log("Search results:", results);
+//       res.json(results);
+//     } catch (error: any) {
+//       console.error("Error during search:", error);
+//       res
+//         .status(500)
+//         .json({ error: `An error occurred while searching: ${error.message}` });
+//     }
+//   }
+// );
+// Serve the file using the token (accessible to both Admin and User)
+// router.get(
+//   "/download/:token",
+//   authorizeRole("Admin"),
+//   async (req: Request, res: Response) => {
+//     const { token } = req.params;
+
+//     try {
+//       const decoded = jwt.verify(token, JWT_SECRET) as { filename: string };
+
+//       // Adjusted file path to match your directory structure
+//       const filePath = path.join(__dirname, "../uploads", decoded.filename);
+
+//       console.log("Looking for file at:", filePath); // Log for debugging
+
+//       if (!fs.existsSync(filePath)) {
+//         return res.status(404).json({ error: "File not found" });
+//       }
+
+//       res.download(filePath);
+//     } catch (error: any) {
+//       if (error.name === "TokenExpiredError") {
+//         return res.status(401).json({ error: "Download link has expired" });
+//       }
+//       console.error(error);
+//       res.status(500).json({ error: "Failed to download file" });
+//     }
+//   }
+// );
+// Generate a short-lived download link for a document file (accessible to both Admin and User)
+// router.post(
+//   "/generate-download-link/:filename",
+//   authorizeRole("Admin"),
+//   async (req: Request, res: Response) => {
+//     const { filename } = req.params;
+
+//     try {
+//       // Generate a JWT token with file information and expiration time
+//       const token = jwt.sign({ filename }, JWT_SECRET, {
+//         expiresIn: LINK_EXPIRATION,
+//       });
+
+//       // Construct the download link
+//       const downloadLink = `${req.protocol}://${req.get(
+//         "host"
+//       )}/documents/download/${token}`;
+
+//       res.status(200).json({ downloadLink });
+//       // console.log("Hello I am here");
+//     } catch (error: any) {
+//       res.status(500).json({ error: "Failed to generate download link" });
+//     }
+//   }
+// );
