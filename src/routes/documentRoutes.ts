@@ -15,6 +15,132 @@ const LINK_EXPIRATION = process.env.LINK_EXPIRATION || "15m";
 router.use(authMiddleware);
 // router.use();
 
+
+router.get(
+  "/search",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    console.log("Hello I am here");
+    const { tags, title, author, metadata } = req.query;
+
+    console.log("Search parameters:", { tags, title, author, metadata });
+
+    try {
+      const query = db.select().from(documents);
+
+      // Dynamically use tags provided in the API URL
+      if (tags) {
+        const tagsArray = Array.isArray(tags) ? tags : [tags];
+        console.log("Filtering by tags:", tagsArray);
+        query.where(arrayContains(documents.tags as any, tagsArray as any));
+      }
+
+      // Filter by title if provided
+      if (title) {
+        console.log("Filtering by title:", title);
+        query.where(ilike(documents.title, `%${title}%`));
+      }
+
+      // Filter by author if provided
+      if (author) {
+        console.log("Filtering by author:", author);
+        query.where(ilike(documents.author, `%${author}%`));
+      }
+
+      // Filter by metadata if provided
+      if (metadata) {
+        try {
+          const metadataObj = JSON.parse(metadata as string);
+          console.log("Filtering by metadata:", metadataObj);
+          Object.keys(metadataObj).forEach((key) => {
+            query.where(eq((documents.metadata as any)[key], metadataObj[key]));
+          });
+        } catch (jsonParseError) {
+          console.error(
+            "Failed to parse metadata:",
+            (jsonParseError as any).message
+          );
+          return res.status(400).json({ error: "Invalid metadata format" });
+        }
+      }
+
+      const results = await query;
+      console.log("Search results:", results);
+      res.json(results);
+    } catch (error: any) {
+      console.error("Error during search:", error);
+      res
+        .status(500)
+        .json({ error: `An error occurred while searching: ${error.message}` });
+    }
+  }
+);
+
+// Get all documents (accessible to both Admin and User)
+router.get("/allDocuments", async (req: Request, res: Response) => {
+  try {
+    const allDocuments = await db.select().from(documents).execute();
+    res.status(200).json(allDocuments);
+  } catch (error: any) {
+    res.status(500).json({ error: "Failed to retrieve documents" });
+  }
+});
+
+// Get a single document by ID
+router.get(
+  "/:id",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+      const result = await db
+        .select()
+        .from(documents)
+        .where(eq(documents.id, id))
+        .execute();
+      const document = result[0];
+      if (document) {
+        res.status(200).json(document);
+        console.log("Hello I am here");
+      } else {
+        res.status(404).json({ message: "Document not found" });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: "Failed to retrieve document" });
+    }
+  }
+);
+
+// Serve the file using the token (accessible to both Admin and User)
+router.get(
+  "/download/:token",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { token } = req.params;
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { filename: string };
+
+      // Adjusted file path to match your directory structure
+      const filePath = path.join(__dirname, "../uploads", decoded.filename);
+
+      console.log("Looking for file at:", filePath); // Log for debugging
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: "File not found" });
+      }
+
+      res.download(filePath);
+    } catch (error: any) {
+      if (error.name === "TokenExpiredError") {
+        return res.status(401).json({ error: "Download link has expired" });
+      }
+      console.error(error);
+      res.status(500).json({ error: "Failed to download file" });
+    }
+  }
+);
+
 // Create a new document (accessible to both Admin and User)
 router.post("/addDocument", async (req: Request, res: Response) => {
   const parsed = documentSchema.safeParse(req.body);
@@ -32,7 +158,7 @@ router.post("/addDocument", async (req: Request, res: Response) => {
       })
       .returning();
     res.status(201).json(newDocument);
-    console.log("Hello I am here");
+    // console.log("Hello I am here");
   } catch (error: any) {
     res.status(500).json({ error: "Failed to create document" });
   }
@@ -114,128 +240,6 @@ router.post(
       console.log("Hello I am here");
     } catch (error: any) {
       res.status(500).json({ error: "Failed to generate download link" });
-    }
-  }
-);
-
-// Serve the file using the token (accessible to both Admin and User)
-router.get(
-  "/download/:token",
-  authorizeRole("Admin"),
-  async (req: Request, res: Response) => {
-    const { token } = req.params;
-
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as { filename: string };
-
-      // Adjusted file path to match your directory structure
-      const filePath = path.join(__dirname, "../uploads", decoded.filename);
-
-      console.log("Looking for file at:", filePath); // Log for debugging
-
-      if (!fs.existsSync(filePath)) {
-        return res.status(404).json({ error: "File not found" });
-      }
-
-      res.download(filePath);
-    } catch (error: any) {
-      if (error.name === "TokenExpiredError") {
-        return res.status(401).json({ error: "Download link has expired" });
-      }
-      console.error(error);
-      res.status(500).json({ error: "Failed to download file" });
-    }
-  }
-);
-
-
-router.get("/search",authorizeRole('Admin'), async (req: Request, res: Response) => {
-  console.log("Hello I am here"); 
-  const { tags, title, author, metadata } = req.query;
-
-  console.log("Search parameters:", { tags, title, author, metadata });
-
-  try {
-    const query = db.select().from(documents);
-
-    // Dynamically use tags provided in the API URL
-    if (tags) {
-      const tagsArray = Array.isArray(tags) ? tags : [tags];
-      console.log("Filtering by tags:", tagsArray);
-      query.where(arrayContains(documents.tags as any, tagsArray as any));
-    }
-
-    // Filter by title if provided
-    if (title) {
-      console.log("Filtering by title:", title);
-      query.where(ilike(documents.title, `%${title}%`));
-    }
-
-    // Filter by author if provided
-    if (author) {
-      console.log("Filtering by author:", author);
-      query.where(ilike(documents.author, `%${author}%`));
-    }
-
-    // Filter by metadata if provided
-    if (metadata) {
-      try {
-        const metadataObj = JSON.parse(metadata as string);
-        console.log("Filtering by metadata:", metadataObj);
-        Object.keys(metadataObj).forEach((key) => {
-          query.where(eq((documents.metadata as any)[key], metadataObj[key]));
-        });
-      } catch (jsonParseError) {
-        console.error(
-          "Failed to parse metadata:",
-          (jsonParseError as any).message
-        );
-        return res.status(400).json({ error: "Invalid metadata format" });
-      }
-    }
-
-    const results = await query;
-    console.log("Search results:", results);
-    res.json(results);
-  } catch (error: any) {
-    console.error("Error during search:", error);
-    res
-      .status(500)
-      .json({ error: `An error occurred while searching: ${error.message}` });
-  }
-});
-
-// Get all documents (accessible to both Admin and User)
-router.get("/allDocuments", async (req: Request, res: Response) => {
-  try {
-    const allDocuments = await db.select().from(documents).execute();
-    res.status(200).json(allDocuments);
-  } catch (error: any) {
-    res.status(500).json({ error: "Failed to retrieve documents" });
-  }
-});
-
-// Get a single document by ID
-router.get(
-  "/:id",
-  authorizeRole("Admin"),
-  async (req: Request, res: Response) => {
-    const { id } = req.params;
-    try {
-      const result = await db
-        .select()
-        .from(documents)
-        .where(eq(documents.id, id))
-        .execute();
-      const document = result[0];
-      if (document) {
-        res.status(200).json(document);
-        console.log("Hello I am here");
-      } else {
-        res.status(404).json({ message: "Document not found" });
-      }
-    } catch (error: any) {
-      res.status(500).json({ error: "Failed to retrieve document" });
     }
   }
 );

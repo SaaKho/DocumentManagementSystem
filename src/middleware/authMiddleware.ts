@@ -40,4 +40,3 @@ export const authorizeRole = (role: string) => {
     next();
   };
 };
-
