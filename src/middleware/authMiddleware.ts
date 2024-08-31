@@ -31,7 +31,7 @@ export const authMiddleware = (
 
 export const authorizeRole = (role: string) => {
   return (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    console.log(req.user);
+    // console.log(req.user);
     if (!req.user || req.user.role !== role) {
       return res
         .status(403)

@@ -68,7 +68,7 @@ router.post(
           username,
           email,
           password: hashedPassword,
-          role: "Admin", // Explicitly set role as 'admin'
+          role: "Admin", 
         })
         .returning();
 
