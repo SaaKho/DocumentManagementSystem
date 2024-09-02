@@ -1,17 +1,24 @@
 import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db, users } from "../drizzle/schema";
+import { db, users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { registerSchema, loginSchema } from "../validation/authvalidation";
-import { authMiddleware, authorizeRole } from "../middleware/authMiddleware";
-
+import { registerSchema, loginSchema } from "../../validation/authvalidation";
+import { authMiddleware, authorizeRole } from "../../middleware/authMiddleware";
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
-const LINK_EXPIRATION = process.env.LINK_EXPIRATION || "15m";
 
-// Route for user registration (open to all users)
+// Define a custom type that extends Request to include the user property
+interface AuthenticatedRequest extends Request {
+  user?: {
+    id: string;
+    username: string;
+    role: string;
+  };
+}
+
+//Tested and working
 router.post("/register", async (req: Request, res: Response) => {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -30,6 +37,7 @@ router.post("/register", async (req: Request, res: Response) => {
         role: "user", // Default role is 'user'
       })
       .returning();
+
     res
       .status(201)
       .json({ message: "User registered successfully", user: newUser });
@@ -39,42 +47,82 @@ router.post("/register", async (req: Request, res: Response) => {
   }
 });
 
+// Route for admin registration (admin-only route)
+router.post(
+  "/register-admin",
+  authMiddleware,
+  authorizeRole("Admin"),
+  async (req: AuthenticatedRequest, res: Response) => {
+    const parsed = registerSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ errors: parsed.error.errors });
+    }
+    const { username, email, password } = parsed.data;
+
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const newAdmin = await db
+        .insert(users)
+        .values({
+          username,
+          email,
+          password: hashedPassword,
+          role: "Admin",
+        })
+        .returning();
+
+      res
+        .status(201)
+        .json({ message: "Admin registered successfully", user: newAdmin });
+    } catch (error: any) {
+      console.log(error);
+      res.status(500).json({ error: "Failed to register admin" });
+    }
+  }
+);
+
 // Route for user login
+//Tested and working
 router.post("/login", async (req: Request, res: Response) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ errors: parsed.error.errors });
   }
   const { username, password } = parsed.data;
+
   try {
     const result = await db
       .select()
       .from(users)
       .where(eq(users.username, username))
       .execute();
+
     const user = result[0];
+
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: "Invalid username or password" });
     }
+
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role }, // Include role in token
       JWT_SECRET,
-      {
-        expiresIn: "1h",
-      }
+      { expiresIn: "1h" }
     );
+
     res.json({ token });
   } catch (error: any) {
+    console.log(error);
     res.status(500).json({ error: "Failed to log in" });
   }
 });
 
 // Route to update a user (accessible only to Admin)
+//Tested and working
 router.put(
   "/update/:id",
   authMiddleware,
   authorizeRole("Admin"),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
     const { username, email, password, role } = req.body;
 
@@ -82,13 +130,14 @@ router.put(
       const hashedPassword = password
         ? await bcrypt.hash(password, 10)
         : undefined;
+
       const updatedUser = await db
         .update(users)
         .set({
           username: username || undefined,
           email: email || undefined,
           password: hashedPassword || undefined,
-          role: role || undefined,
+          role: role ? role.toLowerCase() : undefined,
         })
         .where(eq(users.id, id))
         .returning()
@@ -107,11 +156,12 @@ router.put(
 );
 
 // Route to delete a user (accessible only to Admin)
+//Tested and working
 router.delete(
   "/deleteUser/:id",
   authMiddleware,
   authorizeRole("Admin"),
-  async (req: Request, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     const { id } = req.params;
 
     try {
