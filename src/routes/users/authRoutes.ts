@@ -1,11 +1,10 @@
 import express, { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { db, users } from "../drizzle/schema";
+import { db, users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
-import { registerSchema, loginSchema } from "../validation/authvalidation";
-import { authMiddleware, authorizeRole } from "../middleware/authMiddleware";
-
+import { registerSchema, loginSchema } from "../../validation/authvalidation";
+import { authMiddleware, authorizeRole } from "../../middleware/authMiddleware";
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
@@ -68,7 +67,7 @@ router.post(
           username,
           email,
           password: hashedPassword,
-          role: "Admin", 
+          role: "Admin",
         })
         .returning();
 

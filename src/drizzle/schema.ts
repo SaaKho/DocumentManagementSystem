@@ -34,11 +34,10 @@ export const documents = pgTable("documents", {
   fileName: varchar("fileName", { length: 255 }).notNull(),
   fileExtension: varchar("fileExtension", { length: 10 }).notNull(),
   contentType: varchar("contentType", { length: 50 }).notNull(),
-  tags: text("tags").array().default([]), 
+  tags: text("tags").array().default([]),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
 });
-
 
 // Define the users table schema with UUID and role
 export const users = pgTable("users", {
@@ -71,7 +70,7 @@ export const users = pgTable("users", {
 //       content:
 //         "This document outlines the project plan for the solar energy initiative...",
 //       author: "Jane Smith",
-//       tags: ["project", "solar", "energy", "sustainability"], 
+//       tags: ["project", "solar", "energy", "sustainability"],
 //       metadata: {
 //         project_name: "Solar Energy Initiative",
 //         start_date: "2024-01-01",
