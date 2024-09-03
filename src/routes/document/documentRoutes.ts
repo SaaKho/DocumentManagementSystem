@@ -1,33 +1,29 @@
 import express, { Request, Response } from "express";
+import multer from "multer";
+import {
+  getAllDocuments,
+  getDocumentById,
+  createDocument,
+  uploadDocument,
+  deleteDocumentById,
+} from "../../services/documentService";
 import path from "path";
 import fs from "fs";
-import { db, documents } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
-import { authMiddleware } from "../../middleware/authMiddleware";
-import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
+import { authorizeRole, authMiddleware } from "../../middleware/authMiddleware";
 
 const router = express.Router();
-
-// Apply the auth middleware to all routes
 router.use(authMiddleware);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Define the path to the 'uploads' folder inside the 'src' directory
-    const uploadsDir = path.join(__dirname, "../../uploads"); // Move up two levels to reach the 'src' folder
-
-    // Check if the directory exists
+    const uploadsDir = path.join(__dirname, "../../uploads");
     if (!fs.existsSync(uploadsDir)) {
-      // If the directory does not exist, create it
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
-
-    // Specify the uploads directory as the destination for file storage
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    // Generate a unique filename for the uploaded document
     const filename = `document_${uuidv4()}${path.extname(file.originalname)}`;
     cb(null, filename);
   },
@@ -35,14 +31,13 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-//Get all documents
+// Get all documents
 router.get("/getAllDocuments", async (req: Request, res: Response) => {
   try {
-    const allDocuments = await db.select().from(documents).execute();
-
+    const documents = await getAllDocuments();
     res.status(200).json({
       message: "Documents retrieved successfully",
-      documents: allDocuments,
+      documents,
     });
   } catch (error: any) {
     console.error("Error retrieving documents:", error);
@@ -50,17 +45,11 @@ router.get("/getAllDocuments", async (req: Request, res: Response) => {
   }
 });
 
-//Get Document by Id
+// Get document by ID
 router.get("/getDocument/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
-
   try {
-    const document = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, id))
-      .execute();
-
+    const document = await getDocumentById(id);
     if (document.length > 0) {
       res.status(200).json({
         message: "Document retrieved successfully",
@@ -76,54 +65,41 @@ router.get("/getDocument/:id", async (req: Request, res: Response) => {
 });
 
 // Create a new document
-router.post("/createNewDocument", async (req: Request, res: Response) => {
-  const { fileName, fileExtension, contentType, tags } = req.body;
+router.post(
+  "/createNewDocument",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { fileName, fileExtension, contentType, tags } = req.body;
 
-  if (!fileName || !fileExtension || !contentType) {
-    return res.status(400).json({ error: "Missing required fields" });
-  }
-
-  try {
-    const documentsDir = path.join(__dirname, "../../documents");
-    if (!fs.existsSync(documentsDir)) {
-      fs.mkdirSync(documentsDir, { recursive: true });
+    if (!fileName || !fileExtension || !contentType) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
-    const fullFilePath = path.join(documentsDir, `${fileName}${fileExtension}`);
-
-    fs.writeFileSync(fullFilePath, "", "utf8");
-
-    // Ensure tags is an array
-    const tagsArray = Array.isArray(tags) ? tags : tags.split(",");
-
-    const newDocument = await db
-      .insert(documents)
-      .values({
-        id: uuidv4(),
+    try {
+      const { newDocument, fullFilePath } = await createDocument(
         fileName,
         fileExtension,
         contentType,
-        tags: tagsArray, // Ensure tags are passed as an array
-      })
-      .returning();
-
-    res.status(201).json({
-      message: "Document created successfully",
-      document: newDocument,
-      filePath: fullFilePath,
-    });
-  } catch (error: any) {
-    console.error("Error creating document:", error);
-    res.status(500).json({ error: "Failed to create document" });
+        tags
+      );
+      res.status(201).json({
+        message: "Document created successfully",
+        document: newDocument,
+        filePath: fullFilePath,
+      });
+    } catch (error: any) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ error: "Failed to create document" });
+    }
   }
-});
+);
 
-// Endpoint to upload a document with metadata
+// Upload a document
 router.post(
   "/uploadDocument",
   upload.single("file"),
   async (req: Request, res: Response) => {
-    const { title, author, tags } = req.body;
+    const { tags } = req.body;
     const file = req.file;
 
     if (!file) {
@@ -131,22 +107,11 @@ router.post(
     }
 
     try {
-      const metadata = {
-        fileName: path.parse(file.originalname).name,
-        fileExtension: path.extname(file.originalname),
-        contentType: file.mimetype,
-        tags: tags ? tags.split(",") : [],
-      };
-
-      const newDocument = await db
-        .insert(documents)
-        .values(metadata)
-        .returning();
-
+      const { newDocument, filePath } = await uploadDocument(file, tags);
       res.status(201).json({
         message: "Document uploaded successfully",
         document: newDocument,
-        filePath: path.join(__dirname, "../../uploads", file.filename), // Ensure correct path
+        filePath,
       });
     } catch (error: any) {
       console.error("Error uploading document:", error);
@@ -156,36 +121,28 @@ router.post(
 );
 
 // Delete a document by ID
-router.delete("/deleteDocument/:id", async (req: Request, res: Response) => {
-  const { id } = req.params;
+router.delete(
+  "/deleteDocument/:id",
+  authorizeRole("Admin"),
+  async (req: Request, res: Response) => {
+    const { id } = req.params;
 
-  try {
-    const existingDocument = await db
-      .select()
-      .from(documents)
-      .where(eq(documents.id, id))
-      .execute();
+    try {
+      const deletedDocument = await deleteDocumentById(id);
 
-    if (existingDocument.length === 0) {
-      return res.status(404).json({ message: "Document not found" });
+      if (!deletedDocument) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.status(200).json({
+        message: "Document deleted successfully",
+        document: deletedDocument,
+      });
+    } catch (error: any) {
+      console.error("Error deleting document:", error);
+      return res.status(500).json({ error: "Failed to delete document" });
     }
-
-    await db.delete(documents).where(eq(documents.id, id)).execute();
-
-    const filePath = path.join(
-      __dirname,
-      "../uploads",
-      `${existingDocument[0].fileName}${existingDocument[0].fileExtension}`
-    );
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    return res.status(200).json({ message: "Document deleted successfully" });
-  } catch (error: any) {
-    console.error("Error deleting document:", error);
-    return res.status(500).json({ error: "Failed to delete document" });
   }
-});
+);
 
 export default router;
