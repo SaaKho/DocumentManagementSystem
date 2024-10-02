@@ -1,7 +1,10 @@
-import { AuthenticatedRequest } from "../../src/middleware/authMiddleware";
-import { db, permissions } from "../../src/drizzle/schema";
+// import { AuthenticatedRequest } from "../../src/middleware/authMiddleware";
+// import { db, permissions } from "../../src/drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { Response, NextFunction } from "express";
+import { AuthenticatedRequest } from "../middleware/authMiddleware";
+import { db, permissions } from "../drizzle/schema";
+
 
 export const sharePermissionMiddleware = async (
   req: AuthenticatedRequest,
