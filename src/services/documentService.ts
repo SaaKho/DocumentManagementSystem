@@ -1,124 +1,73 @@
-// src/services/documentService.ts
-import { DocumentRepository } from "../repository/documentRepository";
-import { v4 as uuidv4 } from "uuid";
-import path from "path";
-import fs from "fs";
+import { db, documents, permissions } from "../drizzle/schema";
+import { v4 as uuidv4 } from "uuid"; // For generating unique document IDs
+import { eq } from "drizzle-orm"; // Import eq function
 
-const documentRepository = new DocumentRepository();
-
-export const getDocumentByIdService = async (id: string) => {
-  const document = await documentRepository.getDocumentById(id);
-  if (!document) throw new Error("Document not found");
-  return document;
-};
-
-export const getAllDocumentsService = async () => {
-  return await documentRepository.getAllDocuments();
-};
-
-export const createNewDocumentService = async (
+// Service to create a new document and assign the user as "Owner"
+export const createDocumentService = async (
+  userId: string,
   fileName: string,
   fileExtension: string,
   contentType: string,
-  tags: string | string[]
-) => {
-  // Ensure the file path is relative to src/documents
-  const documentsDir = path.join(__dirname, "../documents");
-
-  // Ensure the directory exists
-  if (!fs.existsSync(documentsDir)) {
-    fs.mkdirSync(documentsDir, { recursive: true });
-  }
-
-  // Define the full path of the file
-  // const fullFilePath = path.join(documentsDir, `${fileName}${fileExtension}`);
-  const fullFilePath = path.join(documentsDir, `${uuidv4()}${fileExtension}`);
-
-
-  // Create the file with some placeholder content if it doesn't exist
-  if (!fs.existsSync(fullFilePath)) {
-    fs.writeFileSync(
-      fullFilePath,
-      "Placeholder content for the document",
-      "utf8"
-    );
-  }
-
-  const tagsArray = Array.isArray(tags) ? tags : tags.split(",");
-
-  const newDocumentData = {
-    id: uuidv4(),
-    fileName,
-    fileExtension,
-    contentType,
-    tags: tagsArray,
-  };
-
-  // Save the document data to the database
-  const newDocument = await documentRepository.createDocument(newDocumentData);
-
-  return { newDocument, fullFilePath };
-};
-
-export const uploadDocumentService = async (
-  file: Express.Multer.File,
   tags: string[]
 ) => {
-  const metadata = {
-    fileName: path.parse(file.originalname).name,
-    fileExtension: path.extname(file.originalname),
-    contentType: file.mimetype,
-    tags,
-  };
+  const newDocumentId = uuidv4(); // Generate a unique document ID
 
-  const newDocument = await documentRepository.createDocument(metadata);
+  // Insert the new document
+  await db
+    .insert(documents)
+    .values({
+      id: newDocumentId,
+      fileName,
+      fileExtension,
+      contentType,
+      tags,
+    })
+    .execute();
 
-  const filePath = path.join(__dirname, "../../uploads", file.filename);
+  // Assign the user as the "Owner" in the permissions table
+  await db
+    .insert(permissions)
+    .values({
+      id: uuidv4(),
+      documentId: newDocumentId,
+      userId: userId,
+      permissionType: "Owner", // User is the owner of the document
+    })
+    .execute();
 
-  return { newDocument, filePath };
+  return newDocumentId;
 };
 
-// export const uploadDocumentService = async (
-//   file: Express.Multer.File,
-//   tags: string[]
-// ) => {
-//   const id = uuidv4(); // Generate the UUID once
+// Service to get a document by ID
+export const getDocumentService = async (documentId: string) => {
+  const document = await db
+    .select()
+    .from(documents)
+    .where(eq(documents.id, documentId)) // Use eq function correctly
+    .execute();
 
-//   const metadata = {
-//     id, // Use this UUID as the document ID in the database
-//     fileName: path.parse(file.originalname).name,
-//     fileExtension: path.extname(file.originalname),
-//     contentType: file.mimetype,
-//     tags,
-//   };
+  return document[0]; // Return the document if found
+};
 
-//   const newDocument = await documentRepository.createDocument(metadata);
+// Service to update a document by ID (only Owner and Editor can update)
+export const updateDocumentService = async (
+  documentId: string,
+  updates: Partial<{ fileName: string; fileExtension: string; contentType: string; tags: string[] }>
+) => {
+  const updatedDocument = await db
+    .update(documents)
+    .set(updates)
+    .where(eq(documents.id, documentId)) // Use eq function correctly
+    .returning()
+    .execute();
 
-//   // Use the same UUID for the file name
-//   const filePath = path.join(__dirname, "../../uploads", `document_${id}${metadata.fileExtension}`);
+  return updatedDocument[0];
+};
 
-//   // Move file to the correct location (if not already handled by multer)
-//   fs.renameSync(file.path, filePath);
-
-//   return { newDocument, filePath };
-// };
-
-export const deleteDocumentService = async (id: string) => {
-  const existingDocument = await documentRepository.getDocumentById(id);
-  if (!existingDocument) {
-    throw new Error("Document not found");
-  }
-
-  await documentRepository.deleteDocument(id);
-
-  const filePath = path.join(
-    __dirname,
-    "../../uploads",
-    `${existingDocument.fileName}${existingDocument.fileExtension}`
-  );
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
-  }
-
-  return existingDocument;
+// Service to delete a document by ID (only Owner or Admin can delete)
+export const deleteDocumentService = async (documentId: string) => {
+  await db
+    .delete(documents)
+    .where(eq(documents.id, documentId)) // Use eq function correctly
+    .execute();
 };

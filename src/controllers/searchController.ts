@@ -1,6 +1,6 @@
+// SearchController.ts
 import { Request, Response } from "express";
 import { advancedSearchDocuments } from "../services/searchService";
-//Making this a class
 
 export class SearchController {
   async advancedSearch(req: Request, res: Response) {

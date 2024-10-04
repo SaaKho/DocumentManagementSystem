@@ -1,75 +1,37 @@
 import express from "express";
-import path from "path";
-import fs from "fs";
-import { authMiddleware, authorizeRole } from "../../middleware/authMiddleware";
-import multer from "multer";
-import { v4 as uuidv4 } from "uuid";
 import { DocumentController } from "../../controllers/documentController";
+import { loginMiddleware } from "../../middleware/loginMiddleware";
+import { roleMiddleware } from "../../middleware/roleMiddleware";
+import { adminMiddleware } from "../../middleware/adminMiddleware";
 
 const router = express.Router();
 
-const documentController = new DocumentController();
+// Route to create a new document (only authenticated users can create documents)
+router.post("/create", loginMiddleware, DocumentController.createNewDocument);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadsDir = path.join(__dirname, "../../uploads");
-    // Check if the directory exists
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-    // Specify the uploads directory as the destination for file storage
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate a unique filename for the uploaded document
-    const filename = `document_${uuidv4()}${path.extname(file.originalname)}`;
-    cb(null, filename);
-  },
-});
-
-// const storage = multer.diskStorage({
-//   destination: (req, file, cb) => {
-//     const uploadsDir = path.join(__dirname, "../../uploads");
-//     if (!fs.existsSync(uploadsDir)) {
-//       fs.mkdirSync(uploadsDir, { recursive: true });
-//     }
-//     cb(null, uploadsDir);
-//   },
-//   filename: (req, file, cb) => {
-//     const id = uuidv4();
-//     const filename = `document_${id}${path.extname(file.originalname)}`;
-//     cb(null, filename);
-//   },
-// });
-
-const upload = multer({ storage });
-
+// Route to get a document (Owner, Editor, and Viewer can access)
 router.get(
-  "/getAllDocuments",
-  documentController.getAllDocuments.bind(documentController)
+  "/:documentId",
+  loginMiddleware,
+  roleMiddleware("Viewer"), // Viewer, Editor, and Owner can access
+  DocumentController.getDocument
 );
 
-router.get(
-  "/getDocument/:id",
-  documentController.getDocument.bind(documentController)
+// Route to update a document (only Owner and Editor can update)
+router.put(
+  "/:documentId",
+  loginMiddleware,
+  roleMiddleware("Editor"), // Editor and Owner can update
+  DocumentController.updateDocument
 );
 
-// // POST create new document
-// router.post("/createNewDocument", authorizeRole("Admin"), createNewDocument);
-router.post(
-  "/createNewDocument",
-  documentController.createNewDocument.bind(documentController)
-);
-
-router.post(
-  "/uploadDocument",
-  upload.single("file"),
-  documentController.uploadDocument.bind(documentController)
-);
-
+// Route to delete a document (only Owner or Admin can delete)
 router.delete(
-  "/deleteDocument/:id",
-  documentController.deleteDocument.bind(documentController)
+  "/:documentId",
+  loginMiddleware,
+  adminMiddleware, // Admin can delete any document
+  roleMiddleware("Owner"), // Only Owner can delete
+  DocumentController.deleteDocument
 );
 
 export default router;

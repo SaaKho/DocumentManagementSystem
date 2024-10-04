@@ -1,19 +1,19 @@
 import { Request, Response } from "express";
-import {
-  registerNewUserService,
-  registerNewAdminService,
-  loginService,
-  updateUserService,
-  deleteUserService,
-} from "../services/userService";
+import { UserService } from "../services/userService";
 import { AuthenticatedRequest } from "../../src/middleware/authMiddleware";
 
+const userService = new UserService();
+
 export class UserController {
-  // Method to register a new user
-  async registerNewUser(req: Request, res: Response) {
+  // Static method to register a new user
+  static async registerNewUser(req: Request, res: Response) {
     const { username, email, password } = req.body;
     try {
-      const newUser = await registerNewUserService(username, email, password);
+      const newUser = await userService.registerNewUser(
+        username,
+        email,
+        password
+      );
       res
         .status(201)
         .json({ message: "User registered successfully", user: newUser });
@@ -22,12 +22,16 @@ export class UserController {
     }
   }
 
-  // Method to register a new admin
-  async registerNewAdmin(req: AuthenticatedRequest, res: Response) {
+  // Static method to register a new admin
+  static async registerNewAdmin(req: AuthenticatedRequest, res: Response) {
     const { username, email, password } = req.body;
 
     try {
-      const newAdmin = await registerNewAdminService(username, email, password);
+      const newAdmin = await userService.registerNewAdmin(
+        username,
+        email,
+        password
+      );
       res
         .status(201)
         .json({ message: "Admin registered successfully", user: newAdmin });
@@ -36,8 +40,8 @@ export class UserController {
     }
   }
 
-  // Method to login
-  async login(req: Request, res: Response) {
+  // Static method to login
+  static async login(req: Request, res: Response) {
     const { username, password } = req.body;
 
     if (!username || !password) {
@@ -47,7 +51,7 @@ export class UserController {
     }
 
     try {
-      const token = await loginService(username, password);
+      const token = await userService.login(username, password);
       res.status(200).json({ message: "Login successful", token });
     } catch (error: any) {
       if (error.message === "Invalid username or password") {
@@ -57,13 +61,13 @@ export class UserController {
     }
   }
 
-  // Method to update a user
-  async updateUser(req: AuthenticatedRequest, res: Response) {
+  // Static method to update a user
+  static async updateUser(req: AuthenticatedRequest, res: Response) {
     const { id } = req.params;
     const { username, email, password, role } = req.body;
 
     try {
-      const updatedUser = await updateUserService(
+      const updatedUser = await userService.updateUser(
         id,
         username,
         email,
@@ -78,14 +82,12 @@ export class UserController {
     }
   }
 
-  // Method to delete a user
-  async deleteUser(req: AuthenticatedRequest, res: Response) {
+  // Static method to delete a user
+  static async deleteUser(req: AuthenticatedRequest, res: Response) {
     const { id } = req.params;
     try {
-      const deletedUser = await deleteUserService(id);
-      res
-        .status(200)
-        .json({ message: "User deleted successfully"});
+      const deletedUser = await userService.deleteUser(id);
+      res.status(200).json({ message: "User deleted successfully" });
     } catch (error: any) {
       console.log(error);
       res.status(500).json({ error: "Failed to delete user" });

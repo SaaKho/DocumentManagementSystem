@@ -1,4 +1,3 @@
-// userRepository.ts
 import { db, users } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -20,7 +19,7 @@ export class UserRepository {
     role: string = "User"
   ) {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const id = uuidv4(); // Generate UUID
+    const id = uuidv4();
 
     return await db
       .insert(users)

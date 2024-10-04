@@ -3,12 +3,12 @@ import { DownloadController } from "../../controllers/downloadController";
 
 const router = express.Router();
 
-const downloadController = new DownloadController();
-
+// No need to instantiate DownloadController
 router.post(
   "/generate-download-link/:filename",
-  downloadController.generateLink.bind(downloadController)
+  DownloadController.generateLink
 );
-router.get("/:token", downloadController.donwloadFile.bind(downloadController));
+
+router.get("/:token", DownloadController.downloadFile);
 
 export default router;
