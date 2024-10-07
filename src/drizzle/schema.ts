@@ -45,10 +45,10 @@ export const users = pgTable("users", {
 export const permissions = pgTable("permissions", {
   id: uuid("id").primaryKey(),
   documentId: uuid("document_id")
-    .references(() => documents.id)
+    .references(() => documents.id, { onDelete: "cascade" }) // Add onDelete cascade
     .notNull(),
   userId: uuid("user_id")
-    .references(() => users.id)
+    .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   permissionType: varchar("permission_type", { length: 10 }).notNull(),
   created_at: timestamp("created_at").defaultNow(),

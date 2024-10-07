@@ -1,50 +1,58 @@
-import { Request, Response } from "express";
-import {
-  createDocumentService,
-  getDocumentService,
-  updateDocumentService,
-  deleteDocumentService,
-} from "../services/documentService";
-
-// Define a local interface extending Express' Request to include the user property
-interface AuthenticatedRequest extends Request {
-  user?: { id: string; role: string }; // Define the structure of user
-}
+// src/controllers/documentController.ts
+import { Response } from "express";
+import { DocumentService } from "../services/documentService";
+import { documentSchema } from "../validation/documentvalidation";
+import { AuthenticatedRequest } from "@middleware/authMiddleware";
 
 export class DocumentController {
-  // Static method to create a new document
-  static async createNewDocument(req: AuthenticatedRequest, res: Response) {
+  private static documentService: DocumentService;
+
+  static setDocumentService(service: DocumentService) {
+    this.documentService = service;
+  }
+
+  static createNewDocument = async (
+    req: AuthenticatedRequest,
+    res: Response
+  ) => {
     try {
+      const validation = documentSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          message: "Validation error",
+          errors: validation.error.errors,
+        });
+      }
+
       const { fileName, fileExtension, contentType, tags } = req.body;
-      const userId = req.user?.id; // Now TypeScript knows about req.user
+      const userId = req.user?.id;
 
       if (!userId) {
         return res.status(401).json({ message: "User not authenticated" });
       }
 
-      const newDocumentId = await createDocumentService(
+      const tagsArray = Array.isArray(tags) ? tags : tags.split(",");
+      const newDocument = await this.documentService.createDocument(
         userId,
         fileName,
-        fileExtension,
+        fileExtension || "",
         contentType,
-        tags
+        tagsArray
       );
 
       res.status(201).json({
         message: "Document created successfully",
-        documentId: newDocumentId,
+        document: newDocument,
       });
     } catch (error) {
-      console.error("Error creating document:", error);
       res.status(500).json({ message: "Failed to create document" });
     }
-  }
+  };
 
-  // Static method to get a document
-  static async getDocument(req: AuthenticatedRequest, res: Response) {
+  static getDocument = async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { documentId } = req.params;
-      const document = await getDocumentService(documentId);
+      const document = await this.documentService.getDocument(documentId);
 
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
@@ -52,18 +60,24 @@ export class DocumentController {
 
       res.status(200).json({ document });
     } catch (error) {
-      console.error("Error retrieving document:", error);
       res.status(500).json({ message: "Failed to retrieve document" });
     }
-  }
+  };
 
-  // Static method to update a document
-  static async updateDocument(req: AuthenticatedRequest, res: Response) {
+  static updateDocument = async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { documentId } = req.params;
-      const updates = req.body;
+      const { fileName, fileExtension, contentType, tags } = req.body;
 
-      const updatedDocument = await updateDocumentService(documentId, updates);
+      const updatedDocument = await this.documentService.updateDocument(
+        documentId,
+        {
+          fileName,
+          fileExtension,
+          contentType,
+          tags: Array.isArray(tags) ? tags : tags.split(","),
+        }
+      );
 
       if (!updatedDocument) {
         return res.status(404).json({ message: "Document not found" });
@@ -74,22 +88,52 @@ export class DocumentController {
         document: updatedDocument,
       });
     } catch (error) {
-      console.error("Error updating document:", error);
       res.status(500).json({ message: "Failed to update document" });
     }
-  }
+  };
 
-  // Static method to delete a document
-  static async deleteDocument(req: AuthenticatedRequest, res: Response) {
+  static deleteDocument = async (req: AuthenticatedRequest, res: Response) => {
     try {
       const { documentId } = req.params;
-
-      await deleteDocumentService(documentId);
-
+      await this.documentService.deleteDocument(documentId);
       res.status(200).json({ message: "Document deleted successfully" });
     } catch (error) {
-      console.error("Error deleting document:", error);
       res.status(500).json({ message: "Failed to delete document" });
     }
-  }
+  };
+
+  static uploadDocument = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
+      }
+
+      const file = req.file;
+      if (!file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const fileName = file.originalname;
+      const fileExtension = file.originalname.split(".").pop() || "";
+      const contentType = file.mimetype;
+      const tags = req.body.tags ? req.body.tags.split(",") : [];
+
+      const newDocument = await this.documentService.uploadDocument(
+        fileName,
+        fileExtension,
+        contentType,
+        tags,
+        userId
+      );
+
+      res.status(201).json({
+        message: "Document uploaded successfully",
+        documentId: newDocument.getId(),
+        document: newDocument,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to upload document" });
+    }
+  };
 }

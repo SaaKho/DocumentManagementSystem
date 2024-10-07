@@ -1,36 +1,56 @@
+// src/routes/DocumentRoutes.ts
 import express from "express";
+import {
+  authMiddleware,
+  adminMiddleware,
+  roleMiddleware,
+} from "../../middleware/authMiddleware";
+import multer from "multer";
+import { DocumentService } from "../../services/documentService";
 import { DocumentController } from "../../controllers/documentController";
-import { loginMiddleware } from "../../middleware/loginMiddleware";
-import { roleMiddleware } from "../../middleware/roleMiddleware";
-import { adminMiddleware } from "../../middleware/adminMiddleware";
+import { DocumentRepository } from "../../repository/implementations/documentRepository";
+import { ConsoleLogger } from "../../logging/consoleLogger";
 
 const router = express.Router();
 
-// Route to create a new document (only authenticated users can create documents)
-router.post("/create", loginMiddleware, DocumentController.createNewDocument);
+// Initialize repository, logger, and service
+const documentRepository = new DocumentRepository();
+const logger = new ConsoleLogger(); 
+const documentService = new DocumentService(documentRepository, logger); // Inject logger into service
+DocumentController.setDocumentService(documentService);
 
-// Route to get a document (Owner, Editor, and Viewer can access)
+// Multer setup for handling file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "src/uploads"); // Ensure this path is correct
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  },
+});
+const upload = multer({ storage });
+
+router.post("/create", authMiddleware, DocumentController.createNewDocument);
 router.get(
-  "/:documentId",
-  loginMiddleware,
-  roleMiddleware("Viewer"), // Viewer, Editor, and Owner can access
+  "/getDocument/:documentId",
+  authMiddleware,
+  roleMiddleware(["Viewer", "Editor", "Owner"]),
   DocumentController.getDocument
 );
-
-// Route to update a document (only Owner and Editor can update)
 router.put(
-  "/:documentId",
-  loginMiddleware,
-  roleMiddleware("Editor"), // Editor and Owner can update
+  "/updateDocument/:documentId",
+  authMiddleware,
   DocumentController.updateDocument
 );
-
-// Route to delete a document (only Owner or Admin can delete)
+router.post(
+  "/uploadDocument",
+  authMiddleware,
+  upload.single("file"),
+  DocumentController.uploadDocument
+);
 router.delete(
-  "/:documentId",
-  loginMiddleware,
-  adminMiddleware, // Admin can delete any document
-  roleMiddleware("Owner"), // Only Owner can delete
+  "/deleteDocument/:documentId",
+  authMiddleware,
   DocumentController.deleteDocument
 );
 

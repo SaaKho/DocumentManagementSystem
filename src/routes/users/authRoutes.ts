@@ -1,36 +1,40 @@
+// src/routes/authRoutes.ts
 import express from "express";
-import { authMiddleware,authorizeRole } from "../../middleware/authMiddleware";
+import { authMiddleware, authorizeRole } from "../../middleware/authMiddleware";
 import { UserController } from "../../controllers/userController";
+import { UserService } from "../../services/userService";
+import { UserRepository } from "../../repository/implementations/userRepository";
+import { JwtAuthHandler } from "../../auth/handlers/JWTAuthHandler";
+import { ConsoleLogger } from "../../logging/consoleLogger"; // Import Logger
 
 const router = express.Router();
 
-// Public route for user registration (no middleware)
-router.post("/register", UserController.registerNewUser);
+// Set up DI for UserService
+const userRepository = new UserRepository();
+const authHandler = new JwtAuthHandler(userRepository);
+const logger = new ConsoleLogger(); 
+const userService = new UserService(userRepository, authHandler, logger); 
+UserController.setUserService(userService);
 
-// Route for admin registration (only Admins can register new admins)
+// Routes
+router.post("/register", UserController.registerNewUser);
 router.post(
   "/registerAdmin",
-  authMiddleware, // Authenticated users only
-  (req, res, next) => authorizeRole("Admin")(req, res, next), // Only Admins
+  authMiddleware,
+  authorizeRole("Admin"),
   UserController.registerNewAdmin
 );
-
-// Route for user login (no middleware)
 router.post("/login", UserController.login);
-
-// Route for updating a user (requires authentication and role authorization)
 router.put(
-  "/update/:id",
-  authMiddleware, // Authenticated users only
-  (req, res, next) => authorizeRole("Admin")(req, res, next), // Only Admins can update users
+  "/updateUser/:id",
+  authMiddleware,
+  authorizeRole("Admin"),
   UserController.updateUser
 );
-
-// Route for deleting a user (requires authentication and role authorization)
 router.delete(
   "/deleteUser/:id",
-  authMiddleware, // Authenticated users only
-  (req, res, next) => authorizeRole("Admin")(req, res, next), // Only Admins can delete users
+  authMiddleware,
+  authorizeRole("Admin"),
   UserController.deleteUser
 );
 

@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
-import {
-  addNewTagService,
-  updateTagService,
-  deleteTagService,
-} from "../services/tagService";
+import { TagService } from "../services/tagService";
 
-// Refactoring TagController to use static methods
 export class TagController {
-  // Static method to add a new tag
-  static async addNewTag(req: Request, res: Response) {
+  private static tagService: TagService;
+
+  static setTagService(service: TagService) {
+    TagController.tagService = service;
+  }
+
+  static addNewTag = async (req: Request, res: Response) => {
     const { documentId } = req.params;
     const { name } = req.body;
 
@@ -17,19 +17,20 @@ export class TagController {
     }
 
     try {
-      const updatedDocument = await addNewTagService(documentId, name);
+      const updatedDocument = await TagController.tagService.addNewTag(
+        documentId,
+        name
+      );
       res.status(200).json({
         message: "Tag added successfully",
         document: updatedDocument,
       });
     } catch (error: any) {
-      console.error("Error adding new tag:", error);
-      res.status(500).json({ error: "Failed to add new tag" });
+      return res.status(500).json({ error: "Failed to add new tag" });
     }
-  }
+  };
 
-  // Static method to update a tag
-  static async updateTag(req: Request, res: Response) {
+  static updateTag = async (req: Request, res: Response) => {
     const { documentId } = req.params;
     const { oldName, newName } = req.body;
 
@@ -40,23 +41,21 @@ export class TagController {
     }
 
     try {
-      const updatedDocument = await updateTagService(
+      const updatedDocument = await TagController.tagService.updateTag(
         documentId,
         oldName,
         newName
       );
       res.status(200).json({
         message: "Tag updated successfully",
-        document: updatedDocument[0],
+        document: updatedDocument,
       });
     } catch (error: any) {
-      console.error("Error updating tag:", error);
-      res.status(500).json({ error: "Failed to update tag" });
+      return res.status(500).json({ error: "Failed to update tag" });
     }
-  }
+  };
 
-  // Static method to delete a tag
-  static async deleteTag(req: Request, res: Response) {
+  static deleteTag = async (req: Request, res: Response) => {
     const { documentId } = req.params;
     const { name } = req.body;
 
@@ -65,14 +64,16 @@ export class TagController {
     }
 
     try {
-      const updatedDocument = await deleteTagService(documentId, name);
+      const updatedDocument = await TagController.tagService.deleteTag(
+        documentId,
+        name
+      );
       res.status(200).json({
         message: "Tag deleted successfully",
-        document: updatedDocument[0],
+        document: updatedDocument,
       });
     } catch (error: any) {
-      console.error("Error deleting tag:", error);
-      res.status(500).json({ error: "Failed to delete tag" });
+      return res.status(500).json({ error: "Failed to delete tag" });
     }
-  }
+  };
 }
