@@ -5,12 +5,10 @@ import {
   deleteTagService,
 } from "../services/tagService";
 
-//Making the TagController the tag class
-
+// Refactoring TagController to use static methods
 export class TagController {
-  TagController() {}
-
-  async addNewTag(req: Request, res: Response) {
+  // Static method to add a new tag
+  static async addNewTag(req: Request, res: Response) {
     const { documentId } = req.params;
     const { name } = req.body;
 
@@ -21,7 +19,7 @@ export class TagController {
     try {
       const updatedDocument = await addNewTagService(documentId, name);
       res.status(200).json({
-        message: "Tags are added successfully",
+        message: "Tag added successfully",
         document: updatedDocument,
       });
     } catch (error: any) {
@@ -30,7 +28,8 @@ export class TagController {
     }
   }
 
-  async updateTag(req: Request, res: Response) {
+  // Static method to update a tag
+  static async updateTag(req: Request, res: Response) {
     const { documentId } = req.params;
     const { oldName, newName } = req.body;
 
@@ -56,7 +55,8 @@ export class TagController {
     }
   }
 
-  async deleteTag(req: Request, res: Response) {
+  // Static method to delete a tag
+  static async deleteTag(req: Request, res: Response) {
     const { documentId } = req.params;
     const { name } = req.body;
 

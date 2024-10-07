@@ -1,55 +1,29 @@
 import { Request, Response } from "express";
 import {
-  getDocumentByIdService,
-  getAllDocumentsService,
-  createNewDocumentService,
-  uploadDocumentService,
+  createDocumentService,
+  getDocumentService,
+  updateDocumentService,
   deleteDocumentService,
 } from "../services/documentService";
 
-//Making a class of DocumentController
+// Define a local interface extending Express' Request to include the user property
+interface AuthenticatedRequest extends Request {
+  user?: { id: string; role: string }; // Define the structure of user
+}
 
 export class DocumentController {
-  DocumentController() {}
-
-  async getDocument(req: Request, res: Response) {
-    const { id } = req.params;
+  // Static method to create a new document
+  static async createNewDocument(req: AuthenticatedRequest, res: Response) {
     try {
-      const document = await getDocumentByIdService(id);
-      res.status(200).json({
-        message: "Document retrieved successfully",
-        document,
-      });
-    } catch (error: any) {
-      if (error.message === "Document not found") {
-        res.status(404).json({ message: error.message });
-      } else {
-        console.error("Error retrieving document:", error);
-        res.status(500).json({ error: "Failed to retrieve document" });
+      const { fileName, fileExtension, contentType, tags } = req.body;
+      const userId = req.user?.id; // Now TypeScript knows about req.user
+
+      if (!userId) {
+        return res.status(401).json({ message: "User not authenticated" });
       }
-    }
-  }
-  async getAllDocuments(req: Request, res: Response) {
-    try {
-      const allDocuments = await getAllDocumentsService();
-      res.status(200).json({
-        message: "Documents retrieved successfully",
-        documents: allDocuments,
-      });
-    } catch (error: any) {
-      console.error("Error retrieving documents:", error);
-      res.status(500).json({ error: "Failed to retrieve documents" });
-    }
-  }
-  async createNewDocument(req: Request, res: Response) {
-    const { fileName, fileExtension, contentType, tags } = req.body;
 
-    if (!fileName || !fileExtension || !contentType) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    try {
-      const { newDocument, fullFilePath } = await createNewDocumentService(
+      const newDocumentId = await createDocumentService(
+        userId,
         fileName,
         fileExtension,
         contentType,
@@ -58,49 +32,64 @@ export class DocumentController {
 
       res.status(201).json({
         message: "Document created successfully",
-        document: newDocument,
-        filePath: fullFilePath,
+        documentId: newDocumentId,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating document:", error);
-      res.status(500).json({ error: "Failed to create document" });
+      res.status(500).json({ message: "Failed to create document" });
     }
   }
 
-  async uploadDocument(req: Request, res: Response) {
-    const { tags } = req.body;
-    const file = req.file;
-
-    if (!file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-
+  // Static method to get a document
+  static async getDocument(req: AuthenticatedRequest, res: Response) {
     try {
-      const { newDocument, filePath } = await uploadDocumentService(
-        file,
-        tags ? tags.split(",") : []
-      );
+      const { documentId } = req.params;
+      const document = await getDocumentService(documentId);
 
-      res.status(201).json({
-        message: "Document uploaded successfully",
-        document: newDocument,
-        filePath: filePath,
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.status(200).json({ document });
+    } catch (error) {
+      console.error("Error retrieving document:", error);
+      res.status(500).json({ message: "Failed to retrieve document" });
+    }
+  }
+
+  // Static method to update a document
+  static async updateDocument(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { documentId } = req.params;
+      const updates = req.body;
+
+      const updatedDocument = await updateDocumentService(documentId, updates);
+
+      if (!updatedDocument) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      res.status(200).json({
+        message: "Document updated successfully",
+        document: updatedDocument,
       });
-    } catch (error: any) {
-      console.error("Error uploading document:", error);
-      res.status(500).json({ error: "Failed to upload document" });
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ message: "Failed to update document" });
     }
   }
-  async deleteDocument(req: Request, res: Response) {
-    const { id } = req.params;
 
+  // Static method to delete a document
+  static async deleteDocument(req: AuthenticatedRequest, res: Response) {
     try {
-      await deleteDocumentService(id);
-      return res.status(200).json({ message: "Document deleted successfully" });
-    } catch (error: any) {
+      const { documentId } = req.params;
+
+      await deleteDocumentService(documentId);
+
+      res.status(200).json({ message: "Document deleted successfully" });
+    } catch (error) {
       console.error("Error deleting document:", error);
-      return res.status(500).json({ error: "Failed to delete document" });
+      res.status(500).json({ message: "Failed to delete document" });
     }
   }
 }
-

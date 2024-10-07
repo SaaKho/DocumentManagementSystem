@@ -3,21 +3,12 @@ import { authMiddleware, authorizeRole } from "../../middleware/authMiddleware";
 import { TagController } from "../../controllers/tagController";
 
 const router = express.Router();
-const tagController = new TagController();
 
-router.post(
-  "/addNewTag/:documentId",
-  tagController.addNewTag.bind(tagController)
-);
+// No need to instantiate TagController, directly use static methods
+router.post("/addNewTag/:documentId", TagController.addNewTag);
 
-router.put(
-  "/updateTag/:documentId",
-  tagController.updateTag.bind(tagController)
-);
+router.put("/updateTag/:documentId", TagController.updateTag);
 
-router.delete(
-  "/deleteTag/:documentId",
-  tagController.deleteTag.bind(tagController)
-);
+router.delete("/deleteTag/:documentId", TagController.deleteTag);
 
 export default router;

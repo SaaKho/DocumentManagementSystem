@@ -41,3 +41,16 @@ export const users = pgTable("users", {
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });
+
+export const permissions = pgTable("permissions", {
+  id: uuid("id").primaryKey(),
+  documentId: uuid("document_id")
+    .references(() => documents.id)
+    .notNull(),
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .notNull(),
+  permissionType: varchar("permission_type", { length: 10 }).notNull(),
+  created_at: timestamp("created_at").defaultNow(),
+  updated_at: timestamp("updated_at").defaultNow(),
+});

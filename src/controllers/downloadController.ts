@@ -3,12 +3,10 @@ import {
   generateDownloadLink,
   serveFileByToken,
 } from "../services/downloadService";
-//Making this a class
 
 export class DownloadController {
-  DownloadController() {}
-
-  async generateLink(req: Request, res: Response) {
+  // Static method to generate a download link
+  static async generateLink(req: Request, res: Response) {
     const { filename } = req.params;
 
     try {
@@ -24,7 +22,8 @@ export class DownloadController {
     }
   }
 
-  async donwloadFile(req: Request, res: Response) {
+  // Static method to download a file using a token
+  static async downloadFile(req: Request, res: Response) {
     const { token } = req.params;
 
     try {

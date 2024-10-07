@@ -1,3 +1,4 @@
+// SearchRoute.ts
 import express from "express";
 import { SearchController } from "../../controllers/searchController";
 
