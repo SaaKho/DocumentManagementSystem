@@ -1,11 +1,11 @@
 import express from "express";
-import authRoutes from "./routes/users/authRoutes";
-import documentRoutes from "./routes/document/documentRoutes";
-import tagRoutes from "./routes/document/tagRoutes";
-import downloadRoutes from "./routes/document/downloadRoutes";
-import searchRoute from "./routes/document/searchRoute";
-import permissionRoutes from "./routes/users/permissionRoutes";
-import paginationRoutes from "./routes/document/paginationRoutes";
+import authRoutes from "./presentation/routes/authRoutes";
+import documentRoutes from "./presentation/routes/documentRoutes";
+import tagRoutes from "./presentation/routes/tagRoutes";
+import downloadRoutes from "./presentation/routes/downloadRoutes";
+import searchRoute from "./presentation/routes/searchRoute";
+import permissionRoutes from "./presentation/routes/permissionRoutes";
+import paginationRoutes from "./presentation/routes/paginationRoutes";
 
 const createApp = () => {
   const app = express();
@@ -21,6 +21,7 @@ const createApp = () => {
   app.use("/api/search", searchRoute);
   app.use("/api/documents", permissionRoutes);
   app.use("/api/pagination", paginationRoutes);
+  app.use("/api/permissions", permissionRoutes);
 
   return app;
 };
