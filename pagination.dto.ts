@@ -1,19 +1,18 @@
-export interface Document {
-  id: string;
-  fileName: string;
-  fileExtension: string;
-  contentType: string;
-  tags: string[] | null;
-  createdAt: Date | null;
-  updatedAt: Date | null;
+import { DocumentDTO } from "./document.dto";
+import { UserDTO } from "./user.dto";
+
+//pagination of all the documents in the database
+export interface PaginatedDocumentsDTO {
+  data: DocumentDTO[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
 }
 
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  password: string;
-  role: string;
-  createdAt: Date | null;
-  updatedAt: Date | null;
+//Pagination of the Users in the database
+export interface PaginatedUsersDTO {
+  data: UserDTO[];
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
 }
