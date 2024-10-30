@@ -8,20 +8,20 @@ import { IDocumentRepository } from "../../domain/interfaces/IDocument.Repositor
 import { Document } from "../../domain/entities/Document";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
-import {
-  AppError,
-  RepositoryResult,
-  InvalidOperation,
-} from "@carbonteq/hexapp";
+import { RepositoryResult } from "@carbonteq/hexapp";
 import { Result } from "@carbonteq/fp";
 import {
   DocumentNotFoundError,
   DocumentAlreadyExistsError,
   DocumentPermissionError,
   DocumentUpdateError,
-} from "../../domain/entities/Document";
+} from "../../domain/errors/document.errors";
+import { injectable } from "inversify";
 
-export class DocumentRepository extends IDocumentRepository {
+@injectable()
+export class DocumentRepository implements IDocumentRepository {
+  //Need to find another place to place this function assignOwner becasue no repo for this
+  //ygm
   async assignOwnerPermission(
     documentId: string,
     userId: string
@@ -62,6 +62,8 @@ export class DocumentRepository extends IDocumentRepository {
       const entity = Document.fromSerialized({
         ...foundDocument,
         tags: foundDocument.tags || [],
+        createdAt: foundDocument.createdAt || new Date(),
+        updatedAt: foundDocument.updatedAt || new Date(),
       });
 
       return Result.Ok(entity);
@@ -89,7 +91,10 @@ export class DocumentRepository extends IDocumentRepository {
       const entity = Document.fromSerialized({
         ...newDocument,
         tags: newDocument.tags || [],
+        createdAt: newDocument.createdAt || new Date(),
+        updatedAt: newDocument.updatedAt || new Date(),
       });
+
       return Result.Ok(entity);
     } catch (error: any) {
       return Result.Err(new DocumentAlreadyExistsError(documentData.id));
@@ -114,6 +119,8 @@ export class DocumentRepository extends IDocumentRepository {
       const documentEntity = Document.fromSerialized({
         ...updatedDocument[0],
         tags: updatedDocument[0].tags || [],
+        createdAt: updatedDocument[0].createdAt || new Date(),
+        updatedAt: updatedDocument[0].updatedAt || new Date(),
       });
 
       return Result.Ok(documentEntity); // Return success case
@@ -139,17 +146,4 @@ export class DocumentRepository extends IDocumentRepository {
       return Result.Err(new DocumentNotFoundError(documentId));
     }
   }
-  //for reference
-  // async delete(ent: Admin): Promise<RepositoryResult<Admin, AdminNotFound>> {
-  //   const { id } = ent.serialize()
-  //   const deleted = await this.db
-  //     .update(adminTbl)
-  //     .set({ isArchived: true })
-  //     .where(eq(adminTbl.id, id))
-  //     .returning()
-
-  //   if (deleted.length === 0) return Result.Err(new AdminNotFound(ent.id, "id"))
-
-  //   return Result.Ok(ent)
-  // }
 }
