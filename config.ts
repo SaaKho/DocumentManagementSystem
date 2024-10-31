@@ -15,14 +15,18 @@ import { PermissionsService } from "../domain/services/permissionService";
 import { PermissionsController } from "../presentation/controllers/permissionController";
 import { TagService } from "../domain/services/tagService";
 import { TagController } from "../presentation/controllers/tagController";
-import { Logger } from "src/infrastructure/logging/logger";
+import { Logger } from "../infrastructure/logging/logger";
 
 const container = new Container();
 
 // Bind repositories
+// container
+//   .bind<DocumentRepository>("IDocumentRepository")
+//   .to(DocumentRepository);
 container
   .bind<IDocumentRepository>("IDocumentRepository")
   .to(DocumentRepository);
+
 container.bind<IUserRepository>("IUserRepository").to(UserRepository);
 
 // Bind services
