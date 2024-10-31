@@ -1,15 +1,11 @@
 // src/entities/Document.ts
 import {
-  GuardViolationError,
   BaseEntity,
-  DateTime,
   IEntity,
   SimpleSerialized,
-  NotFoundError,
-  AlreadyExistsError,
-  InvalidOperation,
   Omitt,
 } from "@carbonteq/hexapp";
+import { DocumentDoesNotHaveFilename } from "../errors/document.errors";
 import { Result } from "@carbonteq/fp";
 
 export interface IDocument extends IEntity {
@@ -20,35 +16,9 @@ export interface IDocument extends IEntity {
   filePath: string;
 }
 
-export class DocumentDoesNotHaveFilename extends GuardViolationError {
-  constructor() {
-    super(`Document must have a file name.`);
-  }
-}
-export class DocumentNotFoundError extends NotFoundError {
-  constructor(id: string) {
-    super(`Document with id: ${id} not found`);
-  }
-}
-export class DocumentAlreadyExistsError extends AlreadyExistsError {
-  constructor(id: string) {
-    super(`Document with id: ${id} already Exists`);
-  }
-}
-export class DocumentPermissionError extends InvalidOperation {
-  constructor(id: string) {
-    super(`Document with id: ${id} already Exists`);
-  }
-}
-export class DocumentUpdateError extends InvalidOperation {
-  constructor(id: string) {
-    super(`Document with id: ${id} cannot be updated`);
-  }
-}
+export type DocumentData = Omitt<IDocument, keyof IEntity | "filePath">;
 
-export type DocumentData = Omitt<IDocument, keyof IEntity>;
-
-export type updateDocumentData = Partial<IDocument>;
+export type UpdateDocumentData = Partial<IDocument>;
 
 export type SerializeDocument = SimpleSerialized<IDocument>;
 
@@ -70,7 +40,7 @@ export class Document extends BaseEntity implements IDocument {
 
   //update method
   update(
-    data: updateDocumentData
+    data: UpdateDocumentData
   ): Result<Document, DocumentDoesNotHaveFilename> {
     return this.ensureFilenameExists().map(() => {
       const updated = {
@@ -111,7 +81,3 @@ export class Document extends BaseEntity implements IDocument {
     return Result.Ok(this);
   }
 }
-
-//suggestions for further changes
-//add fromSerialise waala part
-//
