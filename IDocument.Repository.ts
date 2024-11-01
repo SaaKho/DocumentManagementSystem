@@ -1,18 +1,23 @@
-import {
-  CreateDocumentDTO,
-  UpdateDocumentDTO,
-} from "./document.dto";
-import { Document } from "../../entities/Document";
+import { Document } from "../../domain/entities/Document";
 
 export interface IDocumentRepository {
-  findDocumentById(documentId: string): Promise<CreateDocumentDTO | null>;
-  createDocument(documentData: Document): Promise<CreateDocumentDTO | null>;
-  updateDocument(
+  findDocumentById(documentId: string): Promise<Document | null>;
+  create(documentData: Document): Promise<Document | null>;
+  update(
     documentId: string,
-    updates: UpdateDocumentDTO
-  ): Promise<UpdateDocumentDTO | null>;
-  deleteDocument(documentId: string): Promise<boolean>;
+    updates: Partial<{
+      fileName: string;
+      fileExtension: string;
+      contentType: string;
+      tags: string[];
+      filePath: string;
+    }>
+  ): Promise<Document | null>;
+  delete(documentId: string): Promise<Document | null>;
+  assignOwnerPermission(documentId: string, userId: string): Promise<void>;
 
-  // Add assignOwnerPermission to the interface
-  assignOwnerPermission(documentId: string | undefined, userId: string): Promise<void>;
+  // Tag-specific methods
+  addTag(documentId: string, tagName: string): Promise<Document | null>;
+  updateTag(documentId: string, oldTagName: string, newTagName: string): Promise<Document | null>;
+  deleteTag(documentId: string, tagName: string): Promise<Document | null>;
 }
