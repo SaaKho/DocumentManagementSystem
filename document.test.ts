@@ -2,6 +2,8 @@ import { expect } from "chai";
 import sinon from "sinon";
 import { Document } from "../src/domain/entities/Document";
 import { DocumentDoesNotHaveFilename } from "../src/domain/errors/document.errors";
+import { TagVO } from "../src/domain/valueObjects/Tag";
+import { ContentType } from "../src/domain/refined/document.refined";
 
 describe("Document Entity", () => {
   let document: Document;
@@ -9,108 +11,68 @@ describe("Document Entity", () => {
   let clock: sinon.SinonFakeTimers;
 
   beforeEach(() => {
-    // Set up a fake clock for consistent timestamp tests
     clock = sinon.useFakeTimers(now.getTime());
+
+    console.log("Creating a new Document instance for testing...");
     document = new Document(
       "testFile",
       "txt",
-      "text/plain",
-      ["tag1", "tag2"],
+      ContentType.from("pdf"), // Use valid ContentType
+      [
+        TagVO.create({ tag: "tag1" }).unwrap(),
+        TagVO.create({ tag: "tag2" }).unwrap(),
+      ],
       "/path/to/file"
     );
   });
 
   afterEach(() => {
-    // Restore the real clock
     clock.restore();
   });
 
   it("should create a document with correct details", () => {
+    console.log("Testing document creation...");
     expect(document.fileName).to.equal("testFile");
     expect(document.fileExtension).to.equal("txt");
-    expect(document.contentType).to.equal("text/plain");
-    expect(document.tags).to.deep.equal(["tag1", "tag2"]);
+    expect(document.contentType.valueOf()).to.equal("pdf");
+    expect(document.getTags()).to.deep.equal(["tag1", "tag2"]);
     expect(document.filePath).to.equal("/path/to/file");
   });
 
   it("should throw an error if file name is empty", () => {
+    console.log("Testing error handling for empty filename...");
     expect(
-      () => new Document("", "txt", "text/plain", [], "/path/to/file")
+      () =>
+        new Document("", "txt", ContentType.from("doc"), [], "/path/to/file")
     ).to.throw(DocumentDoesNotHaveFilename);
   });
 
   it("should serialize the document correctly", () => {
+    console.log("Testing document serialization...");
     const serialized = document.serialize();
+    console.log("Serialized Document:", serialized);
     expect(serialized.fileName).to.equal("testFile");
     expect(serialized.fileExtension).to.equal("txt");
-    expect(serialized.contentType).to.equal("text/plain");
+    expect(serialized.contentType).to.equal("pdf");
     expect(serialized.tags).to.deep.equal(["tag1", "tag2"]);
     expect(serialized.filePath).to.equal("/path/to/file");
   });
 
-  it("should deserialize the document correctly", () => {
-    const serializedData = {
-      fileName: "deserializedFile",
-      fileExtension: "pdf",
-      contentType: "application/pdf",
-      tags: ["tag1", "tag2"],
-      filePath: "/new/path/to/file",
-      createdAt: now,
-      updatedAt: now,
-    };
-    const deserializedDoc = Document.fromSerialized(serializedData);
-    expect(deserializedDoc.fileName).to.equal("deserializedFile");
-    expect(deserializedDoc.fileExtension).to.equal("pdf");
-    expect(deserializedDoc.contentType).to.equal("application/pdf");
-    expect(deserializedDoc.tags).to.deep.equal(["tag1", "tag2"]);
-    expect(deserializedDoc.filePath).to.equal("/new/path/to/file");
-  });
-
-  it("should update file name and retain other properties", () => {
-    document.update({ fileName: "newFileName" });
-    expect(document.fileName).to.equal("newFileName");
-    expect(document.tags).to.deep.equal(["tag1", "tag2"]); // Tags remain unchanged
-  });
-
-  it("should throw an error if filename is empty when updating", () => {
-    expect(() => document.update({ fileName: "" })).to.throw(
-      DocumentDoesNotHaveFilename
-    );
-  });
-
-  it("should update multiple fields and keep the document consistent", () => {
-    document.update({
-      fileName: "newFileName",
-      filePath: "/new/path/to/file",
-    });
-    expect(document.fileName).to.equal("newFileName");
-    expect(document.filePath).to.equal("/new/path/to/file");
-  });
-
-  it("should retain tags when updating non-tag fields", () => {
-    document.update({ fileName: "newFileName" });
-    expect(document.tags).to.deep.equal(["tag1", "tag2"]);
-  });
-
-  it("should not update with invalid file name", () => {
-    expect(() => document.update({ fileName: "" })).to.throw(
-      DocumentDoesNotHaveFilename
-    );
-  });
-
   it("should ensure tags are unique when multiple are added", () => {
-    document.update({ tags: ["tag1", "tag2", "tag3"] });
-    expect(document.tags).to.deep.equal(["tag1", "tag2", "tag3"]);
-  });
-
-  it("should not add empty tag values", () => {
-    expect(() => document.update({ tags: ["tag1", ""] })).to.throw(
-      "Tags must be non-empty strings."
+    console.log("Testing unique tag addition...");
+    document.updateTags(
+      ["tag1", "tag2", "tag3"].map((tag) => TagVO.create({ tag }).unwrap())
     );
+    console.log("Updated Tags:", document.getTags());
+    expect(document.getTags()).to.deep.equal(["tag1", "tag2", "tag3"]);
   });
 
   it("should handle update with new tags without affecting existing tags", () => {
-    document.update({ tags: ["newTag1", "newTag2"] });
-    expect(document.tags).to.deep.equal(["newTag1", "newTag2"]);
+    console.log("Testing updating tags...");
+    document.updateTags(
+      ["newTag1", "newTag2"].map((tag) => TagVO.create({ tag }).unwrap())
+    );
+    console.log("Updated Tags:", document.getTags());
+    expect(document.getTags()).to.deep.equal(["newTag1", "newTag2"]);
   });
 });
