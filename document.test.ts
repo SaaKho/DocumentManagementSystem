@@ -1,78 +1,83 @@
 import { expect } from "chai";
-import sinon from "sinon";
 import { Document } from "../src/domain/entities/Document";
-import { DocumentDoesNotHaveFilename } from "../src/domain/errors/document.errors";
-import { TagVO } from "../src/domain/valueObjects/Tag";
-import { ContentType } from "../src/domain/refined/document.refined";
+import {
+  DocumentDoesNotHaveFilename,
+  DocumentDoesNotHaveFileExtension,
+  DocumentDoesNotHaveFilePath,
+} from "../src/domain/errors/documentErrors";
 
 describe("Document Entity", () => {
-  let document: Document;
-  const now = new Date();
-  let clock: sinon.SinonFakeTimers;
+  const validDocumentData = {
+    fileName: "testFile",
+    fileExtension: "txt",
+    filePath: "/path/to/testFile.txt",
+    userId: "12345",
+  };
 
-  beforeEach(() => {
-    clock = sinon.useFakeTimers(now.getTime());
-
-    console.log("Creating a new Document instance for testing...");
-    document = new Document(
-      "testFile",
-      "txt",
-      ContentType.from("pdf"), // Use valid ContentType
-      [
-        TagVO.create({ tag: "tag1" }).unwrap(),
-        TagVO.create({ tag: "tag2" }).unwrap(),
-      ],
-      "/path/to/file"
-    );
+  describe("Construction", () => {
+    it("should create a valid Document entity", () => {
+      const document = new Document(validDocumentData);
+      expect(document.fileName).to.equal("testFile");
+      expect(document.fileExtension).to.equal("txt");
+      expect(document.filePath).to.equal("/path/to/testFile.txt");
+      expect(document.userId).to.equal("12345");
+    });
   });
 
-  afterEach(() => {
-    clock.restore();
+  describe("Serialization", () => {
+    it("should serialize a Document entity correctly", () => {
+      const document = new Document(validDocumentData);
+      const serialized = document.serialize();
+      expect(serialized).to.have.property("fileName", "testFile");
+      expect(serialized).to.have.property("fileExtension", "txt");
+      expect(serialized).to.have.property("filePath", "/path/to/testFile.txt");
+      expect(serialized).to.have.property("userId", "12345");
+    });
+
+    it("should create a Document entity from serialized data", () => {
+      const serialized = {
+        ...validDocumentData,
+        id: "67890", // Simulated ID from base entity
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const document = Document.fromSerialize(serialized);
+      expect(document.fileName).to.equal("testFile");
+      expect(document.fileExtension).to.equal("txt");
+      expect(document.filePath).to.equal("/path/to/testFile.txt");
+      expect(document.userId).to.equal("12345");
+    });
   });
 
-  it("should create a document with correct details", () => {
-    console.log("Testing document creation...");
-    expect(document.fileName).to.equal("testFile");
-    expect(document.fileExtension).to.equal("txt");
-    expect(document.contentType.valueOf()).to.equal("pdf");
-    expect(document.getTags()).to.deep.equal(["tag1", "tag2"]);
-    expect(document.filePath).to.equal("/path/to/file");
+  describe("Validation Guards", () => {
+    it("should return an error if fileName is empty", () => {
+      const invalidData = { ...validDocumentData, fileName: "" };
+      const document = new Document(invalidData);
+      const result = document.guardAgainstInvalidFileName();
+      expect(result.isErr()).to.be.true;
+      expect(result.unwrapErr()).to.be.instanceOf(DocumentDoesNotHaveFilename);
+    });
+
+    it("should return an error if filePath is empty", () => {
+      const invalidData = { ...validDocumentData, filePath: "" };
+      const document = new Document(invalidData);
+      const result = document.guardAgainstInvalidFilePath();
+      expect(result.isErr()).to.be.true;
+      expect(result.unwrapErr()).to.be.instanceOf(DocumentDoesNotHaveFilePath);
+    });
   });
 
-  it("should throw an error if file name is empty", () => {
-    console.log("Testing error handling for empty filename...");
-    expect(
-      () =>
-        new Document("", "txt", ContentType.from("doc"), [], "/path/to/file")
-    ).to.throw(DocumentDoesNotHaveFilename);
-  });
+  describe("Update Functionality", () => {
+    it("should update a Document entity with valid data", () => {
+      const document = new Document(validDocumentData);
+      const updatedData = { fileName: "updatedFile" };
+      const updatedResult = document.update(updatedData);
 
-  it("should serialize the document correctly", () => {
-    console.log("Testing document serialization...");
-    const serialized = document.serialize();
-    console.log("Serialized Document:", serialized);
-    expect(serialized.fileName).to.equal("testFile");
-    expect(serialized.fileExtension).to.equal("txt");
-    expect(serialized.contentType).to.equal("pdf");
-    expect(serialized.tags).to.deep.equal(["tag1", "tag2"]);
-    expect(serialized.filePath).to.equal("/path/to/file");
-  });
+      expect(updatedResult.isOk()).to.be.true;
 
-  it("should ensure tags are unique when multiple are added", () => {
-    console.log("Testing unique tag addition...");
-    document.updateTags(
-      ["tag1", "tag2", "tag3"].map((tag) => TagVO.create({ tag }).unwrap())
-    );
-    console.log("Updated Tags:", document.getTags());
-    expect(document.getTags()).to.deep.equal(["tag1", "tag2", "tag3"]);
-  });
-
-  it("should handle update with new tags without affecting existing tags", () => {
-    console.log("Testing updating tags...");
-    document.updateTags(
-      ["newTag1", "newTag2"].map((tag) => TagVO.create({ tag }).unwrap())
-    );
-    console.log("Updated Tags:", document.getTags());
-    expect(document.getTags()).to.deep.equal(["newTag1", "newTag2"]);
+      const updatedDocument = updatedResult.unwrap();
+      expect(updatedDocument.fileName).to.equal("updatedFile");
+      expect(updatedDocument.filePath).to.equal("/path/to/testFile.txt");
+    });
   });
 });
